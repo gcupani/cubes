@@ -1104,7 +1104,7 @@ class PSF(object):
 class Spec(object):
 
 #    def __init__(self, phot, file=None, wmin=30.93*au.nm, wmax=338.67*au.nm,
-    def __init__(self, phot, file=None, wmin=300*au.nm, wmax=410*au.nm,
+    def __init__(self, phot, file=None, wmin=300*au.nm, wmax=400*au.nm,
                  dw=1e-3*au.nm, templ=spec_templ):
         self.phot = phot
         self.file = file
@@ -1193,13 +1193,12 @@ class Spec(object):
     def custom(self):
         name = self.file    
         try:
-            data = Table(ascii.read(name, data_start=1, names=['col1', 'col2', 'col3', 'col4']))
+            data = Table(ascii.read(name, names=['col1', 'col2', 'col3', 'col4']))
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
             
         except:
-            data = Table(ascii.read(name, data_start=2, names=['col1', 'col2'], format='no_header')[2:], 
-                         dtype=(float, float))#name)
+            data = Table(ascii.read(name, names=['col1', 'col2'], format='no_header'), dtype=(float, float))
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
         if qso_zem != None:
