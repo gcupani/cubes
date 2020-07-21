@@ -268,9 +268,10 @@ class CCD(object):
 
         #self.noise_rand = np.random.normal(0., np.abs(self.noise), self.signal.shape)
 
-        self.image = np.round(self.signal + self.dsignal)
-
-
+        #self.image = np.round(self.signal + self.dsignal)
+        #return np.round(self.signal + self.dsignal)
+        
+        
     def add_slice(self, trace, trace_targ, trace_bckg, xcen, wmin, wmax, wmin_d, wmax_d):
 
         wave_in = self.spec.wave.value
@@ -512,11 +513,13 @@ class CCD(object):
 
 
 
-        image = np.zeros(self.image.shape)
+        #"""
+        #image = np.zeros(self.image.shape)
+        image = np.round(self.signal + self.dsignal)
         thres = np.infty
-        image[self.image > thres] = thres
-        image[self.image < thres] = self.image[self.image < thres]
-
+        image[image > thres] = thres
+        #image[self.image < thres] = self.image[self.image < thres]
+        #"""
         for i in range(arm_n):
             #if fig is None:
             fig, self.ax = plt.subplots(figsize=(8,8))
@@ -537,6 +540,7 @@ class CCD(object):
     def extr_arms(self, n, slice_n):
         wave_snr = np.arange(self.wmins[0].value, self.wmaxs[-1].value, snr_sampl.value)
         self.spec.wave_snr = wave_snr
+        image = np.round(self.signal + self.dsignal)
         for a in range(n):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             flux_extr = 0
@@ -550,12 +554,21 @@ class CCD(object):
                 s_extr = np.empty(int(self.ysize.value))
                 n_extr = np.empty(int(self.ysize.value))
                 for p in range(int(self.ysize.value)):
+                    """
                     y = self.image[p, self.sl_cen[i]-self.sl_hlength:
                                       self.sl_cen[i]+self.sl_hlength, a]
                     b1 = np.median(self.image[p, self.sl_cen[i]-self.sl_hlength+1:
                                               self.sl_cen[i]-self.sl_hlength+6, a])
                     b2 = np.median(self.image[p, self.sl_cen[i]+self.sl_hlength-6:
                                               self.sl_cen[i]+self.sl_hlength-1, a])
+                    """
+                    y = image[p, self.sl_cen[i]-self.sl_hlength:
+                                      self.sl_cen[i]+self.sl_hlength, a]
+                    b1 = np.median(image[p, self.sl_cen[i]-self.sl_hlength+1:
+                                              self.sl_cen[i]-self.sl_hlength+6, a])
+                    b2 = np.median(image[p, self.sl_cen[i]+self.sl_hlength-6:
+                                              self.sl_cen[i]+self.sl_hlength-1, a])
+
                     b.append(0.5*(b1+b2))
                     y = y - b[-1]
                     dy = self.noise[p, self.sl_cen[i]-self.sl_hlength:
