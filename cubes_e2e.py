@@ -540,7 +540,7 @@ class CCD(object):
     def extr_arms(self, n, slice_n):
         wave_snr = np.arange(self.wmins[0].value, self.wmaxs[-1].value, snr_sampl.value)
         self.spec.wave_snr = wave_snr
-        image = np.round(self.signal + self.dsignal)
+        
         for a in range(n):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             flux_extr = 0
@@ -562,12 +562,10 @@ class CCD(object):
                     b2 = np.median(self.image[p, self.sl_cen[i]+self.sl_hlength-6:
                                               self.sl_cen[i]+self.sl_hlength-1, a])
                     """
-                    y = image[p, self.sl_cen[i]-self.sl_hlength:
-                                      self.sl_cen[i]+self.sl_hlength, a]
-                    b1 = np.median(image[p, self.sl_cen[i]-self.sl_hlength+1:
-                                              self.sl_cen[i]-self.sl_hlength+6, a])
-                    b2 = np.median(image[p, self.sl_cen[i]+self.sl_hlength-6:
-                                              self.sl_cen[i]+self.sl_hlength-1, a])
+                    row = np.round(self.signal[p, :, a] + self.dsignal[p, :, a])
+                    y = row[self.sl_cen[i]-self.sl_hlength:self.sl_cen[i]+self.sl_hlength]
+                    b1 = np.median(row[self.sl_cen[i]-self.sl_hlength+1:self.sl_cen[i]-self.sl_hlength+6])
+                    b2 = np.median(row[self.sl_cen[i]+self.sl_hlength-6:self.sl_cen[i]+self.sl_hlength-1])
 
                     b.append(0.5*(b1+b2))
                     y = y - b[-1]
