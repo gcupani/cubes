@@ -90,7 +90,7 @@ moond = 0  # Days from new moon
 
 spec_templ = 'qso'  # Function for the template spectrum ('flat', 'PL', 'qso', 'star')
 spec_file = 'Zheng+97.txt'
-qso_zem = 1.8
+qso_zem = None
 qso_lya_abs = True
 #star_file = 'Castelliap000T5250g45.dat'
 extr_func = 'sum'  # Function for extracting the spectrum ('sum', 'opt' [very slow])

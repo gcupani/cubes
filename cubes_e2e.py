@@ -594,7 +594,10 @@ class CCD(object):
             """
             
             #wave_snr = wave_extr[::snr_sampl]
-            snr_extr = flux_extr/err_extr
+            from scipy.signal import savgol_filter
+            err_savgol = savgol_filter(err_extr, len(wave_extr)//len(wave_snr)//2*4+1, 3)
+
+            snr_extr = flux_extr/err_savgol
             snr_extr[np.where(np.isnan(snr_extr))] = 0
             snr_extr[np.where(np.isinf(snr_extr))] = 0
             snr_spl = cspline(wave_extr, snr_extr)(wave_snr)
@@ -608,6 +611,8 @@ class CCD(object):
             else:
                 self.spec.snr = np.sqrt(self.spec.snr**2+snr_spl**2)
             #snr = uspline(wave_extr, snr_extr)(wave_snr)
+            self.spec.wave_snr_2 = wave_extr
+            self.spec.snr_2 = snr_extr
 
             if a==0:
                 self.spec.wave_extr = np.array(wave_extr)
@@ -1317,7 +1322,7 @@ class Spec(object):
         line1.set_label('On detector')            
         line2.set_label('Extracted')
         line3.set_label('Extracted (error)')
-        self.ax.set_yscale('log')
+        #self.ax.set_yscale('log')
 
         self.ax.legend(loc=2, fontsize=8)
         #self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)
@@ -1327,7 +1332,8 @@ class Spec(object):
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
         self.ax_snr.set_title("SNR")
         #"""
-        linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
+        linet, = self.ax_snr.plot(self.wave_snr_2, self.snr_2, linestyle='--', c='black')
+        linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='red')
         linet.set_label('SNR')
         self.ax_snr.text(0.99, 0.92,
                               "Median SNR: %2.1f" % np.median(self.snr),
