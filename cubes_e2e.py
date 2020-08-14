@@ -306,7 +306,10 @@ class CCD(object):
             bckg = self.spec.bckg_norm[np.logical_and(wave_red>wmin, wave_red<wmax)]
             wave = self.wave_grid(wmin, wmax)
             
-    
+            # Apply correct sampling
+            sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
+            wave = wmin+np.cumsum(sampl)
+            
         else:
             #norm = self.spec.norm_conv
             targ = self.spec.targ_norm
@@ -472,7 +475,6 @@ class CCD(object):
             self.ax_s[1].plot(self.spec.arm_wave[i], cspline(spl_wave, spl_sampl*ccd_ybin)(self.spec.arm_wave[i]), 
                               label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
 
-
             self.ax_s[1].get_xaxis().set_visible(False)
             self.ax_s[1].set_ylabel('Sampling (%s/%s)' % (au.nm, au.pixel))
             self.ax_s[2].plot(self.spec.arm_wave[i], self.spec.fwhm[i], label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
@@ -556,9 +558,20 @@ class CCD(object):
         
         for a in range(n):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
+            
+            # Apply correct sampling
+            sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
+            wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
+
+
             flux_extr = 0
             err_extr = 0
             err_targ_extr = 0
+            err_bckg_extr = 0
+            err_dark_extr = 0
+            err_ron_extr = 0
+            pix_extr = 0
+
             b = []
             for s in range(slice_n):
                 print("Extracting slice %i from arm %i..." % (s, a), end='\r')
@@ -568,6 +581,10 @@ class CCD(object):
                 s_extr = np.empty(int(self.ysize.value))
                 n_extr = np.empty(int(self.ysize.value))
                 n_targ_extr = np.empty(int(self.ysize.value))
+                n_bckg_extr = np.empty(int(self.ysize.value))
+                n_dark_extr = np.empty(int(self.ysize.value))
+                n_ron_extr = np.empty(int(self.ysize.value))                
+                p_extr = np.empty(int(self.ysize.value))                
                 for p in range(int(self.ysize.value)):
                     """
                     y = self.image[p, self.sl_cen[i]-self.sl_hlength:
@@ -588,11 +605,17 @@ class CCD(object):
                                       self.sl_cen[i]+self.sl_hlength, a]
                     dy_targ = self.targ_noise[p, self.sl_cen[i]-self.sl_hlength:
                                       self.sl_cen[i]+self.sl_hlength, a]
-                    s_extr[p], n_extr[p], n_targ_extr[p] = getattr(self, 'extr_'+self.func)\
-                        (y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
+                    s_extr[p], n_extr[p], (n_targ_extr[p], n_bckg_extr[p], n_dark_extr[p], n_ron_extr[p], p_extr[p]) \
+                        = getattr(self, 'extr_'+self.func)(y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
                 flux_extr += s_extr
                 err_extr = np.sqrt(err_extr**2 + n_extr**2)
                 err_targ_extr = np.sqrt(err_targ_extr**2 + n_targ_extr**2)
+                err_bckg_extr = np.sqrt(err_bckg_extr**2 + n_bckg_extr**2)
+                err_dark_extr = np.sqrt(err_dark_extr**2 + n_dark_extr**2)
+                err_ron_extr = np.sqrt(err_ron_extr**2 + n_ron_extr**2)
+                
+                pix_extr = pix_extr+p_extr
+
 
                 #print(flux_extr, err_extr)
 
@@ -600,12 +623,14 @@ class CCD(object):
             dw = np.append(dw[:1], dw)
             dw = np.append(dw, dw[-1:])
             #print(np.mean(b), np.median(b))
-
             flux_extr = flux_extr / dw
             err_extr = err_extr / dw
+            """
             err_targ_extr = err_targ_extr / dw
-
-            
+            err_bckg_extr = err_bckg_extr / dw
+            err_dark_extr = err_dark_extr / dw
+            err_ron_extr = err_ron_extr / dw
+            """
             """
             print("Median error of extraction: %2.3e" % np.nanmedian(err_extr))
             flux_window = flux_extr#[3000//ccd_xbin:3100//ccd_ybin]
@@ -640,14 +665,20 @@ class CCD(object):
                 self.spec.flux_extr = np.array(flux_extr)
                 self.spec.err_extr = np.array(err_extr)
                 self.spec.err_targ_extr = np.array(err_targ_extr)
+                self.spec.err_bckg_extr = np.array(err_bckg_extr)
+                self.spec.err_dark_extr = np.array(err_dark_extr)
+                self.spec.err_ron_extr = np.array(err_ron_extr)
+                self.spec.pix_extr = np.array(pix_extr)
+
             else:
                 self.spec.wave_extr = np.vstack((self.spec.wave_extr, wave_extr.value))
                 self.spec.flux_extr = np.vstack((self.spec.flux_extr, flux_extr.value))
                 self.spec.err_extr = np.vstack((self.spec.err_extr, err_extr.value))
-                self.spec.err_targ_extr = np.vstack((self.spec.err_targ_extr, err_targ_extr.value))
-
-
-
+                self.spec.err_targ_extr = np.vstack((self.spec.err_targ_extr, err_targ_extr))
+                self.spec.err_bckg_extr = np.vstack((self.spec.err_bckg_extr, err_bckg_extr))
+                self.spec.err_dark_extr = np.vstack((self.spec.err_dark_extr, err_dark_extr))
+                self.spec.err_ron_extr = np.vstack((self.spec.err_ron_extr, err_ron_extr))
+                self.spec.pix_extr = np.vstack((self.spec.pix_extr, pix_extr))
             
             """
             linet, = self.spec.ax_snr.plot(wave_snr, snr, c='black')
@@ -695,16 +726,25 @@ class CCD(object):
         ysel = y[sel]
         dysel = dy[sel]
         dysel_targ = dy_targ[sel]
+        dysel_bckg = np.sqrt(dysel**2 - dysel_targ**2 - self.dark**2 - self.ron**2)
 
         s = np.sum(ysel)
         n = np.sqrt(np.sum(dysel**2))
         n_targ = np.sqrt(np.sum(dysel_targ**2))
+        n_bckg = np.sqrt(np.sum(dysel_bckg**2))
+        pix = len(ysel)
+        n_dark = np.sqrt(pix)*self.dark
+        n_ron = np.sqrt(pix)*self.ron
 
         if np.isnan(s) or np.isnan(n) or np.isinf(s) or np.isinf(n) \
             or np.abs(s) > 1e30 or np.abs(n) > 1e30:
             s = 0
             n = 1
-        return s, n, n_targ
+            n_targ = 1
+            n_bckg = 0
+            n_dark = 0
+            n_ron = 0
+        return s, n, (n_targ, n_bckg, n_dark, n_ron, pix)
 
     
     def extr_opt(self, y, dy, dy_targ, mod, x, p):
@@ -717,16 +757,27 @@ class CCD(object):
             s = np.sum(mod_norm[w]*y[w]/dy[w]**2)/np.sum(mod_norm[w]**2/dy[w]**2)
             n = np.sqrt(np.sum(mod_norm[w])/np.sum(mod_norm[w]**2/dy[w]**2))
             n_targ = np.sqrt(np.sum(mod_norm[w])/np.sum(mod_norm[w]**2/dy_targ[w]**2))
+            n_bckg = np.sqrt(n**2 - n_targ**2 - self.dark**2 - self.ron**2)
+            pix = np.sum(mod_norm[w])
+            n_dark = np.sqrt(pix)*self.dark
+            n_ron = np.sqrt(pix)*self.ron
         else:
             s = 0
             n = 1
             n_targ = 1
+            n_bckg = 0
+            n_dark = 0
+            n_ron = 0
+            pix = 0
         if np.isnan(s) or np.isnan(n) or np.isinf(s) or np.isinf(n) \
             or np.abs(s) > 1e30 or np.abs(n) > 1e30:
             s = 0
             n = 1
             n_targ = 1
-        return s, n, n_targ
+            n_bckg = 0
+            n_dark = 0
+            n_ron = 0
+        return s, n, (n_targ, n_bckg, n_dark, n_ron, pix)
 
     
     def rebin(self, arr, length):
@@ -1339,6 +1390,7 @@ class Spec(object):
         #self.ax.plot(self.wave, self.targ/self.atmo_ex, label='Original')
         #self.ax.plot(self.wave, self.targ, label='Extincted')
         #self.ax.plot(self.wave, self.targ_conv, label='Collected')
+        
         for a in range(arm_n):
             line1, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] \
                 * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]), c='C3')
@@ -1363,20 +1415,37 @@ class Spec(object):
         self.ax_noise.set_title("Noise spectrum")
         for a in range(arm_n):
             if arm_n > 1:
-                line1 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='C1')
-                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:], s=2, c='C2')
+                #line1 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='lightgray')
+                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:], s=2, c='C0')
+                line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:], s=2, c='C1')
+                line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:], s=2, c='C2')
+                line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:], s=2, c='C3')
             else:
-                line1 = self.ax_noise.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='C1')
-                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:], s=2, c='C2')
-        line1.set_label('Total')            
+                #line1 = self.ax_noise.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='lightgray')
+                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:], s=2, c='C0')
+                line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:], s=2, c='C1')
+                line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:], s=2, c='C2')
+                line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_romn_extr[:], s=2, c='C3')
+
+        #line1.set_label('Total')            
         line2.set_label('Target')
+        line3.set_label('Background')
+        line4.set_label('Dark')
+        line5.set_label('RON ')
         self.ax_noise.legend(loc=2, fontsize=8)
         self.ax_noise.set_xlabel('Wavelength')
-        self.ax_noise.set_ylabel('Flux density\n (ph/nm)')
-
-
+        self.ax_noise.set_ylabel('Flux\n(ph/extracted pix)')
 
         
+        fig_pix, self.ax_pix = plt.subplots(figsize=(10,5))
+        self.ax_pix.set_title("Extraction spectrum")
+        for a in range(arm_n):
+            if arm_n > 1:
+                line1 = self.ax_pix.scatter(self.wave_extr[a,:], self.pix_extr[a,:], s=2, c='red')
+            else:
+                line1 = self.ax_pix.scatter(self.wave_extr[:], self.pix_extr[:], s=2, c='red')
+        self.ax_pix.set_xlabel('Wavelength')
+        self.ax_pix.set_ylabel('(pix/extracted pix)')
         
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
         self.ax_snr.set_title("SNR")
@@ -1391,7 +1460,7 @@ class Spec(object):
         self.ax_snr.legend(loc=2, fontsize=8)
 
         self.ax_snr.set_xlabel('Wavelength')
-        self.ax_snr.set_ylabel('SNR per pixel')
+        self.ax_snr.set_ylabel('SNR (1/extracted pix)')
         self.ax_snr.grid(linestyle=':')
         #"""
         
