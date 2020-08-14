@@ -6,6 +6,7 @@
 
 from cubes_e2e_config import *
 from astropy import units as au
+from astropy import constants as ac
 from astropy.io import ascii, fits
 from astropy.modeling.fitting import LevMarLSQFitter as lm
 from astropy.modeling.functional_models import Gaussian1D, Gaussian2D, Moffat2D
@@ -1318,6 +1319,8 @@ class Spec(object):
         """
         
         flux = spl #* au.photon/au.nm
+        if qso_lya_abs and qso_zem != None:
+            flux = self.lya_abs(flux)
         return flux #* self.atmo_ex
 
     
@@ -1481,21 +1484,34 @@ class Spec(object):
 
         tau_norm = 0.0028
         tau_index = 3.45
-
-
-
+        qso_zprox = qso_zem - (1.0 + qso_zem) * 10000 * au.km/au.s / ac.c
+        
+        """
+        num = (10**(logN_1*(2+index))-10**(logN_0*(2+index))) / (2+index)
+        num = num + f_1 * (10**(logN_2*(1+index)))/(1+index) * np.log(10**(logN_2)) \
+              - 1/(1+index)
+        num = num - f_1 * (10**(logN_1*(1+index)))/(1+index) * np.log(10**(logN_1)) \
+              - 1/(1+index)
+        num = num + f_2 * (10**(logN_3*(1.5+index))-10**(logN_2*(1.5+index)))/(1.5+index)
+        
         den = (10**(logN_1*(2+index))-10**(logN_0*(2+index))) / (2+index)
         den = den + f_1 * (10**(logN_2*(1+index)))/(1+index) * np.log(10**(logN_2)) \
               - 1/(1+index)
         den = den - f_1 * (10**(logN_1*(1+index)))/(1+index) * np.log(10**(logN_1)) \
               - 1/(1+index)
-        #print(den)
-
+        frac = num/den
+        """
+        #frac = 1.0016458307105238
+        frac = 1
+        
         corr = np.ones(len(flux))
         z = self.wave.value/121.567 - 1
-        corr[z<qso_zem] = np.exp(-1e6*tau_norm*(1+z[z<qso_zem])**tau_index*1/den)*f_0
-        #print(np.exp(tau_norm*(1+z[z<qso_zem])**tau_index*1/den), corr)
-        return flux * corr
+
+        corr[z<qso_zem] = (1-np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0) \
+                           / (qso_zem-qso_zprox) * (z[z<qso_zem]-qso_zprox.value) \
+                           + np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0
+        corr[z<qso_zprox] = np.exp(tau_norm*(1+z[z<qso_zprox])**tau_index*frac)*f_0
+        return flux / corr
 
     """
     def normalize(self, flux):
@@ -1528,7 +1544,7 @@ class Spec(object):
             pass
             
         flux = spl#/np.mean(spl) #* au.photon/au.nm
-        if qso_lya_abs:
+        if qso_lya_abs and qso_zem != None:
             flux = self.lya_abs(flux)
         return flux * self.atmo_ex
 
