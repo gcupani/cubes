@@ -55,14 +55,15 @@ pix_ysize = 15*au.micron  # Y size of the pixels
 spat_scale = 0.25*au.arcsec/(30*au.micron)  # Spatial scale
 arm_n = 2  # Number of arms
 if arm_n == 2:
-   wave_d = [347.5]*au.nm  # Wavelength of dichroich
+    wave_d = [347.5]*au.nm  # Wavelength of dichroich
+    wave_d_shift = 2*au.nm  # Shift of the dichroich wavelength from the CCD edge
 if arm_n == 3:
-   wave_d = [335, 362.5]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
+    wave_d = [335, 362.5]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
+    wave_d_shift = 4*au.nm  # Shift of the dichroich wavelength from the CCD edge
 wave_sampl = [8.1e-3, 8.8e-3, 8.9e-3]*au.nm/au.pixel
 disp_wave = [300, 320, 340, 360, 380, 400]*au.nm  # Wavelengths used to model dispersion
 disp_sampl = [8.2e-3, 7.6e-3, 7.0e-3, 8.3e-3, 7.7e-3, 7.1e-3]*au.nm/au.pixel  # Dispersion sampling on CCD
 disp_resol = [1.86e4, 1.91e4, 1.96e4, 2.01e4, 2.06e4, 2.11e4]  # Resolution
-wave_d_shift = 2*au.nm
 slice_n = 6  # Number of slices
 slice_length = 10*au.arcsec  # Length of the slice
 slice_width = 0.25*au.arcsec  # Width of the slice
@@ -100,5 +101,5 @@ phot_pars = ['bckg_mag', 'mag_syst', 'mag_band', 'targ_mag', 'texp']
 spec_pars = ['spec_templ', 'spec_file', 'qso_zem', 'qso_lya_abs', 'airmass', 'pwv', 'moond']
 psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'slice_n', 'slice_length', 'slice_width', 'seeing']
 ccd_pars = ['ccd_gain', 'ccd_ron', 'ccd_dark', 'ccd_xsize', 'ccd_ysize', 'pix_xsize', 'pix_ysize', 'ccd_xbin', 'ccd_ybin',
-            'arm_n', 'wave_d', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 'disp_wave', 'disp_sampl', 
-            'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']
+            'arm_n', 'wave_d', 'wave_d_shift', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 'disp_wave', 
+            'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']

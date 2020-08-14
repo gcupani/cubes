@@ -79,14 +79,13 @@ class CCD(object):
         #print(self.wmaxs)
         #print(self.wmins_d)
         #print(self.wmaxs_d)
-
         if arm_n > 1:
             wmax = wave_d[0]+wave_d_shift
             wmin = wmax-self.ysize*wave_sampl[0]
             #print(wmin)
             dw = np.full(int(self.ysize.value), 0.5*(wmin.value+wmax.value))
             for j in range(10):
-                wmin2 = wmax.value-np.sum(cspline(disp_wave.value, disp_sampl*ccd_ybin)(dw))
+                wmin2 = wmax.value-np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dw))
                 dw = np.linspace(wmin2, wmax.value, int(self.ysize.value))
             wmin = wmin2*wmin.unit 
             #print(wmin)
@@ -101,7 +100,7 @@ class CCD(object):
                 #print(wmax)
                 dw = np.full(int(self.ysize.value), 0.5*(wmin.value+wmax.value))
                 for j in range(10):
-                    wmax2 = wmin.value+np.sum(cspline(disp_wave.value, disp_sampl*ccd_ybin)(dw))
+                    wmax2 = wmin.value+np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dw))
                     dw = np.linspace(wmin.value, wmax2, int(self.ysize.value))
                 wmax = wmax2*wmax.unit
                 #print(wmax)
@@ -120,8 +119,8 @@ class CCD(object):
             dwmin = np.full(int(self.ysize.value), wcen)
             dwmax = np.full(int(self.ysize.value), wcen)
             for j in range(10):
-                wmin2 = wcen.value-np.sum(cspline(disp_wave.value, disp_sampl*ccd_ybin)(dwmin))/2
-                wmax2 = wcen.value+np.sum(cspline(disp_wave.value, disp_sampl*ccd_ybin)(dwmax))/2
+                wmin2 = wcen.value-np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dwmin))/2
+                wmax2 = wcen.value+np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dwmax))/2
                 dwmin = np.linspace(wmin2, wcen.value, int(self.ysize.value))
                 dwmax = np.linspace(wcen.value, wmax2, int(self.ysize.value))
 
@@ -199,6 +198,7 @@ class CCD(object):
             #fwhm = [w/resol[i]/wave_sampl[i] for w in [m, M]]
             #self.spec.fwhm = np.vstack((self.fwhm, self.arm_wave/resol[i]/wave_sampl[i]))
             
+            """
             spl_sel = np.where(np.logical_and(disp_wave.value>np.min(self.arm_wave),
                                               disp_wave.value<np.max(self.arm_wave)))[0]
             if len(spl_sel)>1:
@@ -209,6 +209,11 @@ class CCD(object):
                 spl_wave = disp_wave
                 spl_sampl = disp_sampl
                 spl_resol = np.array(disp_resol)
+            """
+             
+            spl_wave = disp_wave[i]
+            spl_sampl = disp_sampl[i]
+            spl_resol = np.array(disp_resol[i])
 
             disp = cspline(spl_wave, spl_resol*spl_sampl*ccd_ybin)(self.arm_wave)
             #self.spec.fwhm.append(self.arm_wave/resol[i]/wave_sampl[i])
@@ -448,6 +453,7 @@ class CCD(object):
                                   cspline(disp_wave, disp_sampl*ccd_ybin)(self.spec.arm_wave[i]), 
                                   label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
             """
+            """
             spl_sel = np.where(np.logical_and(disp_wave.value>np.min(self.spec.arm_wave[i]),
                                               disp_wave.value<np.max(self.spec.arm_wave[i])))[0]
             if len(spl_sel)>1:
@@ -456,6 +462,10 @@ class CCD(object):
             else:
                 spl_wave = disp_wave
                 spl_sampl = disp_sampl
+            """
+
+            spl_wave = disp_wave[i]
+            spl_sampl = disp_sampl[i]
             self.ax_s[1].plot(self.spec.arm_wave[i], cspline(spl_wave, spl_sampl*ccd_ybin)(self.spec.arm_wave[i]), 
                               label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
 
@@ -1332,8 +1342,8 @@ class Spec(object):
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
         self.ax_snr.set_title("SNR")
         #"""
-        linet, = self.ax_snr.plot(self.wave_snr_2, self.snr_2, linestyle='--', c='black')
-        linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='red')
+        #linet, = self.ax_snr.plot(self.wave_snr_2, self.snr_2, linestyle='--', c='red')
+        linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
         linet.set_label('SNR')
         self.ax_snr.text(0.99, 0.92,
                               "Median SNR: %2.1f" % np.median(self.snr),
@@ -1476,6 +1486,10 @@ class Sim():
                     for k in globals()[o+'_pars']:
                         try:
                             r = self.__dict__[k]!=globals()[k]
+                            try:
+                                if len(r.shape)>1: r = np.ravel(r)
+                            except:
+                                pass
                             try:
                                 if r.size > 0: r = any(r)
                             except:
