@@ -55,6 +55,8 @@ class CCD(object):
         self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.dsignal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
+        self.targ_noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
+
 
         #print(ccd_dark, ccd_gain, self.npix, self.spec.phot.texp)
         self.dark = np.sqrt((ccd_dark*ccd_gain*self.npix*self.spec.phot.texp)\
@@ -355,12 +357,13 @@ class CCD(object):
         dsignal = targ_noise+bckg_noise
         noise = np.sqrt(targ_noise**2 + bckg_noise**2 + self.dark**2 + self.ron**2)
         #print(np.mean(dsignal))
-    
         
         #self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength] = signal
         self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
         self.dsignal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = dsignal
         self.noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = noise
+        self.targ_noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = targ_noise
+
 
 
 
@@ -555,6 +558,7 @@ class CCD(object):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             flux_extr = 0
             err_extr = 0
+            err_targ_extr = 0
             b = []
             for s in range(slice_n):
                 print("Extracting slice %i from arm %i..." % (s, a), end='\r')
@@ -563,6 +567,7 @@ class CCD(object):
                           self.sl_cen[i]+self.sl_hlength)
                 s_extr = np.empty(int(self.ysize.value))
                 n_extr = np.empty(int(self.ysize.value))
+                n_targ_extr = np.empty(int(self.ysize.value))
                 for p in range(int(self.ysize.value)):
                     """
                     y = self.image[p, self.sl_cen[i]-self.sl_hlength:
@@ -581,10 +586,14 @@ class CCD(object):
                     y = y - b[-1]
                     dy = self.noise[p, self.sl_cen[i]-self.sl_hlength:
                                       self.sl_cen[i]+self.sl_hlength, a]
-                    s_extr[p], n_extr[p] = getattr(self, 'extr_'+self.func)\
-                        (y, dy=dy, mod=self.mod_init[i], x=x, p=p)
+                    dy_targ = self.targ_noise[p, self.sl_cen[i]-self.sl_hlength:
+                                      self.sl_cen[i]+self.sl_hlength, a]
+                    s_extr[p], n_extr[p], n_targ_extr[p] = getattr(self, 'extr_'+self.func)\
+                        (y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
                 flux_extr += s_extr
                 err_extr = np.sqrt(err_extr**2 + n_extr**2)
+                err_targ_extr = np.sqrt(err_targ_extr**2 + n_targ_extr**2)
+
                 #print(flux_extr, err_extr)
 
             dw = (wave_extr[2:]-wave_extr[:-2])*0.5
@@ -594,6 +603,8 @@ class CCD(object):
 
             flux_extr = flux_extr / dw
             err_extr = err_extr / dw
+            err_targ_extr = err_targ_extr / dw
+
             
             """
             print("Median error of extraction: %2.3e" % np.nanmedian(err_extr))
@@ -628,11 +639,13 @@ class CCD(object):
                 self.spec.wave_extr = np.array(wave_extr)
                 self.spec.flux_extr = np.array(flux_extr)
                 self.spec.err_extr = np.array(err_extr)
-
+                self.spec.err_targ_extr = np.array(err_targ_extr)
             else:
                 self.spec.wave_extr = np.vstack((self.spec.wave_extr, wave_extr.value))
                 self.spec.flux_extr = np.vstack((self.spec.flux_extr, flux_extr.value))
                 self.spec.err_extr = np.vstack((self.spec.err_extr, err_extr.value))
+                self.spec.err_targ_extr = np.vstack((self.spec.err_targ_extr, err_targ_extr.value))
+
 
 
             
@@ -676,21 +689,25 @@ class CCD(object):
         print(" from target: %2.3e %s" % (flux_final_tot, flux_final.unit))
         """
 
-    def extr_sum(self, y, dy, **kwargs):
+    def extr_sum(self, y, dy, dy_targ, **kwargs):
         sel = np.s_[self.sl_hlength-self.psf_xlength
                     :self.sl_hlength+self.psf_xlength]
         ysel = y[sel]
         dysel = dy[sel]
+        dysel_targ = dy_targ[sel]
+
         s = np.sum(ysel)
         n = np.sqrt(np.sum(dysel**2))
+        n_targ = np.sqrt(np.sum(dysel_targ**2))
+
         if np.isnan(s) or np.isnan(n) or np.isinf(s) or np.isinf(n) \
             or np.abs(s) > 1e30 or np.abs(n) > 1e30:
             s = 0
             n = 1
-        return s, n
+        return s, n, n_targ
 
     
-    def extr_opt(self, y, dy, mod, x, p):
+    def extr_opt(self, y, dy, dy_targ, mod, x, p):
         mod_fit = lm()(mod, x, y)(x)
         mod_fit[mod_fit < 1e-3] = 0
         if np.sum(mod_fit*dy) > 0 and not np.isnan(mod_fit).any():
@@ -699,14 +716,17 @@ class CCD(object):
             w = dy>0
             s = np.sum(mod_norm[w]*y[w]/dy[w]**2)/np.sum(mod_norm[w]**2/dy[w]**2)
             n = np.sqrt(np.sum(mod_norm[w])/np.sum(mod_norm[w]**2/dy[w]**2))
+            n_targ = np.sqrt(np.sum(mod_norm[w])/np.sum(mod_norm[w]**2/dy_targ[w]**2))
         else:
             s = 0
             n = 1
+            n_targ = 1
         if np.isnan(s) or np.isnan(n) or np.isinf(s) or np.isinf(n) \
             or np.abs(s) > 1e30 or np.abs(n) > 1e30:
             s = 0
             n = 1
-        return s, n
+            n_targ = 1
+        return s, n, n_targ
 
     
     def rebin(self, arr, length):
@@ -1339,6 +1359,25 @@ class Spec(object):
         #self.ax.set_ylabel('Flux density\n(%s)' % self.targ.unit)
         #self.ax.grid(linestyle=':')
 
+        fig_noise, self.ax_noise = plt.subplots(figsize=(10,5))
+        self.ax_noise.set_title("Noise spectrum")
+        for a in range(arm_n):
+            if arm_n > 1:
+                line1 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='C1')
+                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:], s=2, c='C2')
+            else:
+                line1 = self.ax_noise.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='C1')
+                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:], s=2, c='C2')
+        line1.set_label('Total')            
+        line2.set_label('Target')
+        self.ax_noise.legend(loc=2, fontsize=8)
+        self.ax_noise.set_xlabel('Wavelength')
+        self.ax_noise.set_ylabel('Flux density\n (ph/nm)')
+
+
+
+        
+        
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
         self.ax_snr.set_title("SNR")
         #"""
