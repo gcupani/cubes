@@ -308,8 +308,8 @@ class CCD(object):
             wave = self.wave_grid(wmin, wmax)
             
             # Apply correct sampling
-            sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
-            wave = wmin+np.cumsum(sampl)
+            #sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
+            #wave = wmin+np.cumsum(sampl)
             
         else:
             #norm = self.spec.norm_conv
@@ -561,8 +561,8 @@ class CCD(object):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             
             # Apply correct sampling
-            sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
-            wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
+            #sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
+            #wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
 
 
             flux_extr = 0
