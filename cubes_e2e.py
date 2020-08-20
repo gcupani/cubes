@@ -54,7 +54,7 @@ class CCD(object):
         self.xcens = [self.xsize.value//2]*n
         
         self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
-        self.dsignal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
+        #self.dsignal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.targ_noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
 
@@ -284,37 +284,34 @@ class CCD(object):
 
         wave_in = self.spec.wave.value
 
+        
         # Normalization 
         targ_sum = np.sum(self.spec.targ_conv)
         bckg_sum = np.sum(self.spec.bckg_conv)
-        targ = self.spec.targ_conv[np.logical_and(wave_in>self.wmins[0].value, wave_in<self.wmaxs[-1].value)]
-        bckg = self.spec.bckg_conv[np.logical_and(wave_in>self.wmins[0].value, wave_in<self.wmaxs[-1].value)]
+        targ_red = self.spec.targ_conv[np.logical_and(wave_in>self.wmins[0].value, wave_in<self.wmaxs[-1].value)]
+        bckg_red = self.spec.bckg_conv[np.logical_and(wave_in>self.wmins[0].value, wave_in<self.wmaxs[-1].value)]
         wave_red = wave_in[np.logical_and(wave_in>self.wmins[0].value, wave_in<self.wmaxs[-1].value)]
-        self.spec.targ_norm = targ/targ_sum #np.sum(targ)
-        self.spec.bckg_norm = bckg/bckg_sum #np.sum(bckg)
+        self.spec.targ_norm = targ_red/targ_sum #np.sum(targ)
+        self.spec.bckg_norm = bckg_red/bckg_sum #np.sum(bckg)
 
+                
+        #targ = targ_red[np.logical_and(wave_red>wmin, wave_red<wmax)]/targ_sum
+        #bckg = bckg_red[np.logical_and(wave_red>wmin, wave_red<wmax)]/bckg_sum
+        wave = self.wave_grid(wmin, wmax)
         
-        if wmin is not None and wmax is not None or 1==1:
-            #norm = self.spec.norm_conv[np.logical_and(
-            #    self.spec.wave.value>wmin, self.spec.wave.value<wmax)]
-            """
-            targ = self.spec.targ_conv[np.logical_and(
-                self.spec.wave.value>wmin, self.spec.wave.value<wmax)]
-            bckg = self.spec.bckg_conv[np.logical_and(
-                self.spec.wave.value>wmin, self.spec.wave.value<wmax)]
-            """
-            targ = self.spec.targ_norm[np.logical_and(wave_red>wmin, wave_red<wmax)]
-            bckg = self.spec.bckg_norm[np.logical_and(wave_red>wmin, wave_red<wmax)]
-            wave = self.wave_grid(wmin, wmax)
+        # Apply correct sampling
+        sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
+        wave = wmin+np.cumsum(sampl)
+        targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
+        bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
+        
+        # Since self.spec.targ/bckg_norm were normalized, we have to normalize targ/bckg again after csplining
+        targ_arm = targ_red[np.logical_and(wave_red>wmin, wave_red<wmax)]
+        bckg_arm = bckg_red[np.logical_and(wave_red>wmin, wave_red<wmax)]
+        targ = targ/np.sum(targ)*np.sum(targ_arm)/targ_sum
+        bckg = bckg/np.sum(bckg)*np.sum(bckg_arm)/bckg_sum
             
-            # Apply correct sampling
-            #sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
-            #wave = wmin+np.cumsum(sampl)
-            
-        else:
-            #norm = self.spec.norm_conv
-            targ = self.spec.targ_norm
-            bckg = self.spec.bckg_norm
+
 
             
         sl_trace = self.rebin(trace, self.sl_hlength*2)
@@ -327,7 +324,7 @@ class CCD(object):
         """
         sl_targ = self.rebin(targ.value, self.ysize.value)
         sl_bckg = self.rebin(bckg.value, self.ysize.value)
-
+        
         #sl_targ = self.rebin(targ.value/np.sum(targ.value), self.ysize.value)
         #sl_bckg = self.rebin(bckg.value/np.sum(bckg.value), self.ysize.value)
         #"""
@@ -363,8 +360,9 @@ class CCD(object):
         #print(np.mean(dsignal))
         
         #self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength] = signal
-        self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
-        self.dsignal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = dsignal
+        self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = np.round(signal+dsignal)
+        #self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
+        #self.dsignal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = dsignal
         self.noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = noise
         self.targ_noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = targ_noise
 
@@ -531,9 +529,11 @@ class CCD(object):
 
         #"""
         #image = np.zeros(self.image.shape)
-        image = np.round(self.signal + self.dsignal)
-        thres = np.infty
-        image[image > thres] = thres
+
+        #image = np.round(self.signal + self.dsignal)
+        #thres = np.infty
+        #image[image > thres] = thres
+        
         #image[self.image < thres] = self.image[self.image < thres]
         #"""
         for i in range(arm_n):
@@ -541,7 +541,10 @@ class CCD(object):
             fig, self.ax = plt.subplots(figsize=(8,8))
             divider = make_axes_locatable(self.ax)
             cax = divider.append_axes('right', size='5%', pad=0.1)
-            im = self.ax.imshow(image[:,:,i], vmin=0)
+                        
+            #im = self.ax.imshow(image[:,:,i], vmin=0)
+            im = self.ax.imshow(self.signal[:,:,i], vmin=0)
+                        
             self.ax.set_title('CCD')
             self.ax.set_xlabel('X')
             self.ax.set_ylabel('Y')
@@ -552,7 +555,9 @@ class CCD(object):
             cax.xaxis.set_label_position('top')
             cax.set_xlabel(au.ph)
             fig.colorbar(im, cax=cax, orientation='vertical')
-
+            
+            
+            
     def extr_arms(self, n, slice_n):
         wave_snr = np.arange(self.wmins[0].value, self.wmaxs[-1].value, snr_sampl.value)
         self.spec.wave_snr = wave_snr
@@ -561,8 +566,8 @@ class CCD(object):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             
             # Apply correct sampling
-            #sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
-            #wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
+            sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
+            wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
 
 
             flux_extr = 0
@@ -595,7 +600,8 @@ class CCD(object):
                     b2 = np.median(self.image[p, self.sl_cen[i]+self.sl_hlength-6:
                                               self.sl_cen[i]+self.sl_hlength-1, a])
                     """
-                    row = np.round(self.signal[p, :, a] + self.dsignal[p, :, a])
+                    #row = np.round(self.signal[p, :, a] + self.dsignal[p, :, a])
+                    row = self.signal[p, :, a]
                     y = row[self.sl_cen[i]-self.sl_hlength:self.sl_cen[i]+self.sl_hlength]
                     b1 = np.median(row[self.sl_cen[i]-self.sl_hlength+1:self.sl_cen[i]-self.sl_hlength+6])
                     b2 = np.median(row[self.sl_cen[i]+self.sl_hlength-6:self.sl_cen[i]+self.sl_hlength-1])
@@ -1306,8 +1312,8 @@ class Spec(object):
         self.wavef = wavef
         spl = cspline(wavef, fluxf)(self.wave.value)
         
-        
         spl = spl/np.sum((spl_band*fluxb*dwaveb).value)
+
         
         """
         band = np.where(np.logical_and(self.wave>np.min(self.phot.wave_band), self.wave<np.max(self.phot.wave_band)))
@@ -1333,6 +1339,7 @@ class Spec(object):
             sl_l = ["target: %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
                     "background: %2.3e %s" % (sl_v[1], self.bckg_tot.unit)]
             sl_c = ['C0', 'C1']
+            #print(sl_v)
             p = self.ax_p.pie(sl_v, colors=sl_c, autopct='%1.1f%%', startangle=90, 
                           wedgeprops=dict(width=0.2, edgecolor='w'))
             self.ax_p.legend(p[0], sl_l)
@@ -1626,7 +1633,7 @@ class Sim():
                         #print(o)
                         delattr(self, '_'+o)
             self.start()
-
+        del refresh
         
         for o in args:
             if not hasattr(self, '_'+o):
