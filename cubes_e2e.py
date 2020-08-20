@@ -1273,8 +1273,8 @@ class Spec(object):
                          dtype=(float, float))#name)
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
-        if qso_zem != None:
-            wavef = wavef*(1+qso_zem)
+        if zem != None:
+            wavef = wavef*(1+zem)
         self.wavef = wavef
         spl = cspline(wavef, fluxf)(self.wave.value)
         spl = spl/cspline(wavef, fluxf)(self.phot.wave_ref)
@@ -1294,8 +1294,8 @@ class Spec(object):
             data = Table(ascii.read(name, names=['col1', 'col2'], format='no_header'), dtype=(float, float))
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
-        if qso_zem != None:
-            wavef = wavef*(1+qso_zem)
+        if zem != None:
+            wavef = wavef*(1+zem)
 
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
@@ -1325,8 +1325,8 @@ class Spec(object):
         """
         
         flux = spl #* au.photon/au.nm
-        if qso_lya_abs in ['simple', 'inoue'] and qso_zem != None:            
-            flux = getattr(self, qso_lya_abs+'_abs')(flux)
+        if igm_abs in ['simple', 'inoue'] and zem != None:            
+            flux = getattr(self, igm_abs+'_abs')(flux)
         return flux #* self.atmo_ex
 
     
@@ -1486,7 +1486,7 @@ class Spec(object):
         w_ll = 91.18
         
         #ls_w = [np.where(np.logical_and(w>wi,
-        #                                w>wi*(1+qso_zem)))[0] for wi in w_i]
+        #                                w>wi*(1+zem)))[0] for wi in w_i]
         
         tau_ls_laf = np.zeros(len(self.wave))
         tau_ls_dla = np.zeros(len(self.wave))
@@ -1497,65 +1497,60 @@ class Spec(object):
             wi = 0.1*wi
 
             # Eq. 21
-            s_1 = np.where(np.logical_and(w>wi, np.logical_and(w<wi*2.2, w<wi*(1+qso_zem))))[0]
-            s_2 = np.where(np.logical_and(w>wi, np.logical_and(np.logical_and(w>wi*2.2, w<wi*5.7), w<wi*(1+qso_zem))))[0]
-            s_3 = np.where(np.logical_and(w>wi, np.logical_and(np.logical_and(w>wi*2.2, w>wi*5.7), w<wi*(1+qso_zem))))[0]
+            s_1 = np.where(np.logical_and(w>wi, np.logical_and(w<wi*2.2, w<wi*(1+zem))))[0]
+            s_2 = np.where(np.logical_and(w>wi, np.logical_and(np.logical_and(w>wi*2.2, w<wi*5.7), w<wi*(1+zem))))[0]
+            s_3 = np.where(np.logical_and(w>wi, np.logical_and(np.logical_and(w>wi*2.2, w>wi*5.7), w<wi*(1+zem))))[0]
             tau_ls_laf[s_1] = tau_ls_laf[s_1] + a_laf_1 * (w[s_1]/wi)**1.2
             tau_ls_laf[s_2] = tau_ls_laf[s_2] + a_laf_2 * (w[s_2]/wi)**3.7
             tau_ls_laf[s_3] = tau_ls_laf[s_3] + a_laf_3 * (w[s_3]/wi)**5.5
 
             # Eq. 22
-            s_4 = np.where(np.logical_and(w>wi, np.logical_and(w<wi*3.0, w<wi*(1+qso_zem))))[0]    
-            s_5 = np.where(np.logical_and(w>wi, np.logical_and(w>wi*3.0, w<wi*(1+qso_zem))))[0]    
+            s_4 = np.where(np.logical_and(w>wi, np.logical_and(w<wi*3.0, w<wi*(1+zem))))[0]    
+            s_5 = np.where(np.logical_and(w>wi, np.logical_and(w>wi*3.0, w<wi*(1+zem))))[0]    
             tau_ls_dla[s_4] = tau_ls_dla[s_4] + a_dla_1 * (w[s_4]/wi)**2.
             tau_ls_dla[s_5] = tau_ls_dla[s_5] + a_dla_2 * (w[s_5]/wi)**3.
 
         
         # Eq. 25
-        if qso_zem < 1.2:  
-            s_6 = np.where(np.logical_and(w>w_ll, w<w_ll*(1+qso_zem)))[0]
-            tau_lc_laf[s_6] = 0.325*((w[s_6]/w_ll)**1.2 - (1+qso_zem)**-0.9 * (w[s_6]/w_ll)**2.1)
+        if zem < 1.2:  
+            s_6 = np.where(np.logical_and(w>w_ll, w<w_ll*(1+zem)))[0]
+            tau_lc_laf[s_6] = 0.325*((w[s_6]/w_ll)**1.2 - (1+zem)**-0.9 * (w[s_6]/w_ll)**2.1)
 
         # Eq. 26
-        elif qso_zem < 4.7:
-            s_7 = np.where(np.logical_and(w>w_ll, np.logical_and(w<2.2*w_ll, w<w_ll*(1+qso_zem))))[0]
-            s_8 = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, w<w_ll*(1+qso_zem))))[0]
-            tau_lc_laf[s_7] = 2.55e-2*(1+qso_zem)**1.6 * (w[s_7]/w_ll)**2.1 + 0.325*(w[s_7]/w_ll)**1.2 - 0.250*(w[s_7]/w_ll)**2.1 
-            tau_lc_laf[s_8] = 2.55e-2*((1+qso_zem)**1.6 * (w[s_8]/w_ll)**2.1 - (w[s_8]/w_ll)**3.7)
+        elif zem < 4.7:
+            s_7 = np.where(np.logical_and(w>w_ll, np.logical_and(w<2.2*w_ll, w<w_ll*(1+zem))))[0]
+            s_8 = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, w<w_ll*(1+zem))))[0]
+            tau_lc_laf[s_7] = 2.55e-2*(1+zem)**1.6 * (w[s_7]/w_ll)**2.1 + 0.325*(w[s_7]/w_ll)**1.2 - 0.250*(w[s_7]/w_ll)**2.1 
+            tau_lc_laf[s_8] = 2.55e-2*((1+zem)**1.6 * (w[s_8]/w_ll)**2.1 - (w[s_8]/w_ll)**3.7)
 
         # Eq. 27
         else: 
-            s_9 = np.where(np.logical_and(w>w_ll, np.logical_and(w<2.2*w_ll, w<w_ll*(1+qso_zem))))[0]
-            s_a = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, np.logical_and(w<5.7*w_ll, w<w_ll*(1+qso_zem)))))[0]
-            s_b = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, np.logical_and(w>5.7*w_ll, w<w_ll*(1+qso_zem)))))[0]
-            tau_lc_laf[s_9] = 5.22e-4*(1+qso_zem)**3.4 * (w[s_9]/w_ll)**2.1 + 0.325*(w[s_9]/w_ll)**1.2 - 3.14e-2*(w[s_9]/w_ll)**2.1
-            tau_lc_laf[s_a] = 5.22e-4*(1+qso_zem)**3.4 * (w[s_a]/w_ll)**2.1 + 0.218*(w[s_a]/w_ll)**2.1 - 2.55e-2*(w[s_a]/w_ll)**3.7
-            tau_lc_laf[s_b] = 5.22e-2*((1+qso_zem)**3.4 * (w[s_b]/w_ll)**2.1 - (w[s_b]/w_ll)**5.5)
+            s_9 = np.where(np.logical_and(w>w_ll, np.logical_and(w<2.2*w_ll, w<w_ll*(1+zem))))[0]
+            s_a = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, np.logical_and(w<5.7*w_ll, w<w_ll*(1+zem)))))[0]
+            s_b = np.where(np.logical_and(w>w_ll, np.logical_and(w>2.2*w_ll, np.logical_and(w>5.7*w_ll, w<w_ll*(1+zem)))))[0]
+            tau_lc_laf[s_9] = 5.22e-4*(1+zem)**3.4 * (w[s_9]/w_ll)**2.1 + 0.325*(w[s_9]/w_ll)**1.2 - 3.14e-2*(w[s_9]/w_ll)**2.1
+            tau_lc_laf[s_a] = 5.22e-4*(1+zem)**3.4 * (w[s_a]/w_ll)**2.1 + 0.218*(w[s_a]/w_ll)**2.1 - 2.55e-2*(w[s_a]/w_ll)**3.7
+            tau_lc_laf[s_b] = 5.22e-2*((1+zem)**3.4 * (w[s_b]/w_ll)**2.1 - (w[s_b]/w_ll)**5.5)
 
         # Eq. 28
-        if qso_zem < 2.0:
-            s_c = np.where(np.logical_and(w>w_ll, w<w_ll*(1+qso_zem)))[0]
-            tau_lc_dla[s_c] = 0.211*(1+qso_zem)**2. - 7.66e-2*(1+qso_zem)**2.3 * (w[s_c]/w_ll)**(-0.3) - 0.135*(w[s_c]/w_ll)**2.
+        if zem < 2.0:
+            s_c = np.where(np.logical_and(w>w_ll, w<w_ll*(1+zem)))[0]
+            tau_lc_dla[s_c] = 0.211*(1+zem)**2. - 7.66e-2*(1+zem)**2.3 * (w[s_c]/w_ll)**(-0.3) - 0.135*(w[s_c]/w_ll)**2.
                            
         # Eq. 29
         else:               
-            s_d = np.where(np.logical_and(w>w_ll, np.logical_and(w<3.0**w_ll, w<w_ll*(1+qso_zem))))[0]
-            s_e = np.where(np.logical_and(w>w_ll, np.logical_and(w>3.0*w_ll, w<w_ll*(1+qso_zem))))[0]
-            tau_lc_dla[s_d] = 0.634 + 4.7e-2*(1+qso_zem)**3. - 1.78e-2*(1+qso_zem)**3.3 * (w[s_d]/w_ll)**(-0.3) - 0.135*(w[s_d]/w_ll)**2. - 0.291*(w[s_d]/w_ll)**(-0.3)
-            #print(0.634 + 4.7e-2*(1+qso_zem)**3. - 1.78e-2*(1+qso_zem)**3.3 * (w[s_d]/w_ll)**(-0.3) - 0.135*(w[s_d]/w_ll)**2. - 0.291*(w[s_d]/w_ll)**(-0.3))
-            #print(4.7e-2*(1+qso_zem)**3.)
-            #print(- 1.78e-2*(1+qso_zem)**3.3 * (w[s_d]/w_ll)**(-0.3))
-            #print(- 0.135*(w[s_d]/w_ll)**2.)
-            #print(- 0.291*(w[s_d]/w_ll)**(-0.3))
+            s_d = np.where(np.logical_and(w>w_ll, np.logical_and(w<3.0**w_ll, w<w_ll*(1+zem))))[0]
+            s_e = np.where(np.logical_and(w>w_ll, np.logical_and(w>3.0*w_ll, w<w_ll*(1+zem))))[0]
+            tau_lc_dla[s_d] = 0.634 + 4.7e-2*(1+zem)**3. - 1.78e-2*(1+zem)**3.3 * (w[s_d]/w_ll)**(-0.3) - 0.135*(w[s_d]/w_ll)**2. - 0.291*(w[s_d]/w_ll)**(-0.3)
 
-            tau_lc_dla[s_e] = 4.7e-2*(1+qso_zem)**3. - 1.78e-2*(1+qso_zem)**3.3 * (w[s_e]/w_ll)**(-0.3) - 2.92e-2*(w[s_e]/w_ll)**3.
+            tau_lc_dla[s_e] = 4.7e-2*(1+zem)**3. - 1.78e-2*(1+zem)**3.3 * (w[s_e]/w_ll)**(-0.3) - 2.92e-2*(w[s_e]/w_ll)**3.
 
 
         tau = tau_ls_laf + tau_ls_dla + tau_lc_laf + tau_lc_dla
         #print(np.sum(tau), np.sum(tau_ls_laf), np.sum(tau_ls_dla), np.sum(tau_lc_laf), np.sum(tau_lc_dla))
         corr = np.ones(len(flux))
         z = self.wave.value/121.567 - 1
-        corr[z<qso_zem] = np.exp(tau[z<qso_zem])
+        corr[z<zem] = np.exp(tau[z<zem])
         return flux/corr
 
     
@@ -1592,7 +1587,7 @@ class Spec(object):
             pass
             
         flux = spl#/np.mean(spl) #* au.photon/au.nm
-        if qso_lya_abs and qso_zem != None:
+        if igm_abs and zem != None:
             flux = self.lya_abs(flux)
         return flux * self.atmo_ex
 
@@ -1609,7 +1604,7 @@ class Spec(object):
 
         tau_norm = 0.0028
         tau_index = 3.45
-        qso_zprox = qso_zem - (1.0 + qso_zem) * 10000 * au.km/au.s / ac.c
+        qso_zprox = zem - (1.0 + zem) * 10000 * au.km/au.s / ac.c
         
         """
         num = (10**(logN_1*(2+index))-10**(logN_0*(2+index))) / (2+index)
@@ -1632,8 +1627,8 @@ class Spec(object):
         corr = np.ones(len(flux))
         z = self.wave.value/121.567 - 1
 
-        corr[z<qso_zem] = (1-np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0) \
-                           / (qso_zem-qso_zprox) * (z[z<qso_zem]-qso_zprox.value) \
+        corr[z<zem] = (1-np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0) \
+                           / (zem-qso_zprox) * (z[z<zem]-qso_zprox.value) \
                            + np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0
         corr[z<qso_zprox] = np.exp(tau_norm*(1+z[z<qso_zprox])**tau_index*frac)*f_0
         return flux / corr
@@ -1789,7 +1784,7 @@ class Sim():
                         (self._spec.targ_raw.to(au.ph/au.Angstrom)/self._phot.texp/self._phot.area).value)(wavef.value)
         t = Table([wavef, fluxf], 
                   names=['wave','flux'])
-        comment = "l(A) photons/cm2/s/A, z = %3.4f\n%3.4f Vega_Vmag" % (qso_zem, self._phot.targ_mag)
+        comment = "l(A) photons/cm2/s/A, z = %3.4f\n%3.4f Vega_Vmag" % (zem, self._phot.targ_mag)
         t.meta['comments'] = [comment]
         t.write(file, format='ascii.no_header', formats={'wave': '%2.4f', 'flux': '%2.12e'}, 
                 overwrite=True)  

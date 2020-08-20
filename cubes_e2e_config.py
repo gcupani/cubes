@@ -91,8 +91,8 @@ moond = 0  # Days from new moon
 
 spec_templ = 'qso'  # Function for the template spectrum ('flat', 'PL', 'qso', 'star')
 spec_file = 'Zheng+97.txt'
-qso_zem = None
-qso_lya_abs = None
+zem = None
+igm_abs = None
 #star_file = 'Castelliap000T5250g45.dat'
 extr_func = 'sum'  # Function for extracting the spectrum ('sum', 'opt' [very slow])
 snr_sampl = 1*au.nm  # Data points per SNR point
