@@ -548,10 +548,10 @@ class CCD(object):
             self.ax.set_title('CCD')
             self.ax.set_xlabel('X')
             self.ax.set_ylabel('Y')
-            self.ax.text(0.025, 0.025, "Total: %1.3e %s"
-                         % (np.sum(self.signal), au.photon),
-                         ha='left', va='bottom', color='white',
-                         transform=self.ax.transAxes)
+            #self.ax.text(0.025, 0.025, "Total: %1.3e %s"
+            #             % (np.sum(self.signal), au.photon),
+            #             ha='left', va='bottom', color='white',
+            #             transform=self.ax.transAxes)
             cax.xaxis.set_label_position('top')
             cax.set_xlabel(au.ph)
             fig.colorbar(im, cax=cax, orientation='vertical')
