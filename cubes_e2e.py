@@ -91,7 +91,6 @@ class CCD(object):
                 wmin2 = wmax.value-np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dw))
                 dw = np.linspace(wmin2, wmax.value, int(self.ysize.value))
             wmin = wmin2*wmin.unit 
-            #print(wmin)
                 
             self.wmins = np.array([wmin.to(au.nm).value])
             self.wmaxs = np.array([wmax.to(au.nm).value])
@@ -178,7 +177,6 @@ class CCD(object):
             self.xcens, self.wmins, self.wmaxs, self.wmins_d, self.wmaxs_d)):
             self.sl_targ_prof = []
             self.sl_bckg_prof = []
-
             self.arm_counter = i
             self.arm_range = np.logical_and(self.spec.wave.value>m.value,
                                             self.spec.wave.value<M.value)
@@ -300,7 +298,7 @@ class CCD(object):
         wave = self.wave_grid(wmin, wmax)
         
         # Apply correct sampling
-        sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter])(wave)
+        sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter]*ccd_ybin)(wave)
         wave = wmin+np.cumsum(sampl)
         targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
         bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
@@ -566,7 +564,7 @@ class CCD(object):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             
             # Apply correct sampling
-            sampl = cspline(disp_wave[a], disp_sampl[a])(wave_extr)
+            sampl = cspline(disp_wave[a], disp_sampl[a]*ccd_ybin)(wave_extr)
             wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
 
 
@@ -740,6 +738,7 @@ class CCD(object):
         n_targ = np.sqrt(np.sum(dysel_targ**2))
         n_bckg = np.sqrt(np.sum(dysel_bckg**2))
         pix = len(ysel)
+        #print(pix)
         n_dark = np.sqrt(pix)*self.dark
         n_ron = np.sqrt(pix)*self.ron
 
