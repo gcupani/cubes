@@ -164,10 +164,14 @@ class CCD(object):
 
 
         self.eff_wave = []
+        self.eff_fib = []
+        self.eff_opo = []
         self.eff_adc = []
         self.eff_slc = []
         self.eff_dch = []
-        self.eff_spc = []
+        self.eff_fld = []
+        self.eff_col = []
+        self.eff_cam = []
         self.eff_grt = []
         self.eff_ccd = []
         self.eff_tel = []
@@ -485,24 +489,32 @@ class CCD(object):
         fig_e, self.ax_e = plt.subplots(figsize=(10,7))
         self.ax_e.set_title("Efficiency")
         for i in range(0,arm_n*slice_n,slice_n):  # Only one slice per arm is plotted, as they are the same efficiency-wise
-            self.ax_e.plot(self.eff_wave[i], self.eff_adc[i], label='ADC' if i==0 else '', color='C0', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_slc[i], label='Slicer' if i==0 else '', color='C1', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_dch[i], label='Dichroich' if i==0 else '', color='C2', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_spc[i], label='Spectrograph' if i==0 else '', color='C3', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_grt[i], label='Grating' if i==0 else '', color='C4', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_ccd[i], label='CCD' if i==0 else '', color='C5', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_tel[i], label='Telescope' if i==0 else '', color='C6', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_fib[i], label='Fiber' if i==0 else '', color='C0', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_adc[i], label='ADC' if i==0 else '', color='C1', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_opo[i], label='Other pre-optics' if i==0 else '', color='C2', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_slc[i], label='Slicer' if i==0 else '', color='C3', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_dch[i], label='Dichroich' if i==0 else '', color='C4', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_fld[i], label='Folding' if i==0 else '', color='C5', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_col[i], label='Collimator' if i==0 else '', color='C6', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_cam[i], label='Camera' if i==0 else '', color='C7', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_grt[i], label='Grating' if i==0 else '', color='C8', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_ccd[i], label='CCD' if i==0 else '', color='C9', linestyle=':')
+            self.ax_e.plot(self.eff_wave[i], self.eff_tel[i], label='Telescope' if i==0 else '', color='black', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i], label='Total' if i==0 else '', color='C0')
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
                            label='Total including extinction' if i==0 else '', color='C0', linestyle='--')
 
-            self.ax_e.scatter(eff_wave, eff_adc, color='C0')
-            self.ax_e.scatter(eff_wave, eff_slc, color='C1')
-            self.ax_e.scatter(eff_wave, eff_dch, color='C2')
-            self.ax_e.scatter(eff_wave, eff_spc, color='C3')
-            self.ax_e.scatter(eff_wave, eff_grt, color='C4')
-            self.ax_e.scatter(eff_wave, eff_ccd, color='C5')
-            self.ax_e.scatter(eff_wave, eff_tel, color='C6')
+            self.ax_e.scatter(eff_wave, eff_fib, color='C0')
+            self.ax_e.scatter(eff_wave, eff_adc, color='C1')
+            self.ax_e.scatter(eff_wave, eff_opo, color='C2')
+            self.ax_e.scatter(eff_wave, eff_slc, color='C3')
+            self.ax_e.scatter(eff_wave, eff_dch, color='C4')
+            self.ax_e.scatter(eff_wave, eff_fld, color='C5')
+            self.ax_e.scatter(eff_wave, eff_col, color='C6')
+            self.ax_e.scatter(eff_wave, eff_cam, color='C7')
+            self.ax_e.scatter(eff_wave, eff_grt, color='C8')
+            self.ax_e.scatter(eff_wave, eff_ccd, color='C9')
+            self.ax_e.scatter(eff_wave, eff_tel, color='black')
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_e.set_ylabel('Fractional throughput')
         self.ax_e.legend()
@@ -802,15 +814,19 @@ class CCD(object):
         dch_shape = expit(fact*(wave-wmin_d))*expit(fact*(wmax_d-wave))
         i = self.arm_counter
         
+        fib = cspline(eff_wave, eff_fib)(wave)
         adc = cspline(eff_wave, eff_adc)(wave)
+        opo = cspline(eff_wave, eff_opo)(wave)
         slc = cspline(eff_wave, eff_slc)(wave)
         dch = cspline(eff_wave, eff_dch)(wave) * dch_shape
-        spc = cspline(eff_wave, eff_spc)(wave)
+        fld = cspline(eff_wave, eff_fld)(wave)
+        col = cspline(eff_wave, eff_col)(wave)
+        cam = cspline(eff_wave, eff_cam)(wave)
         grt = cspline(eff_wave, eff_grt)(wave)
         ccd = cspline(eff_wave, eff_ccd)(wave)
         tel = cspline(eff_wave, eff_tel)(wave)
-        tot = adc * slc * dch * spc * grt * ccd * tel
-
+        tot = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd * tel
+        
         #adc = eff_adc[i]
         #slc = eff_slc[i]
         #dch = dch_shape * dch_spl
@@ -821,10 +837,14 @@ class CCD(object):
         #return dch_shape
         self.eff_wave.append(wave)
         #print(self.eff_wave)
+        self.eff_fib.append(fib)
         self.eff_adc.append(adc)
+        self.eff_opo.append(opo)
         self.eff_slc.append(slc)
         self.eff_dch.append(dch)
-        self.eff_spc.append(spc)
+        self.eff_fld.append(fld)
+        self.eff_col.append(col)
+        self.eff_cam.append(cam)
         self.eff_grt.append(grt)
         self.eff_ccd.append(ccd)
         self.eff_tel.append(tel)
@@ -870,7 +890,14 @@ class Photons(object):
             #plt.plot(self.wave_band, self.flux_band)
             #plt.show()
         except:
-            pass
+            print("Band not found.")
+            
+        self.data_u = ascii.read('database/phot_U.dat')
+        self.wave_u = self.data_u['col1'] * au.nm
+        self.dwave_u = self.wave_u[1]-self.wave_u[0]
+        self.flux_u = self.data_u['col2']
+        self.flux_u = self.flux_u/np.sum(self.flux_u)*self.dwave_u
+
         
 
         f = self.flux_ref * self.area * texp  # Flux density @ 555.6 nm, V = 0
@@ -1300,19 +1327,24 @@ class Spec(object):
         waveb = wavef[band]
         dwaveb = np.median(wavef[1:]-wavef[:-1])
         fluxb = fluxf[band]
-
         spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb)    
-        #plt.plot(wavef[1:], wavef[1:]-wavef[:-1])
-        #print(-2.5*np.log10(np.sum((spl_band*fluxb*self.phot.dwave_band).value)))
-        #print(np.sum((spl_band*fluxb*dwaveb).value))
 
+        u = np.where(np.logical_and(wavef>np.min(self.phot.wave_u), wavef<np.max(self.phot.wave_u)))
+        waveu = wavef[u]
+        dwaveu = np.median(wavef[1:]-wavef[:-1])
+        fluxu = fluxf[u]
+        spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveb)    
 
             
         self.wavef = wavef
         spl = cspline(wavef, fluxf)(self.wave.value)
-        
-        spl = spl/np.sum((spl_band*fluxb*dwaveb).value)
+        flux = spl/np.sum((spl_band*fluxb*dwaveb).value)
 
+        #flux_u = spl/np.sum((spl_u*fluxu*dwaveu).value)
+        
+        #print(flux, flux_u)
+
+        
         
         """
         band = np.where(np.logical_and(self.wave>np.min(self.phot.wave_band), self.wave<np.max(self.phot.wave_band)))
@@ -1323,7 +1355,7 @@ class Spec(object):
         print(np.sum(spl_band*splb*dwaveb)*self.phot.targ/self.phot.area)
         """
         
-        flux = spl #* au.photon/au.nm
+        #flux = spl #* au.photon/au.nm
         if igm_abs in ['simple', 'inoue'] and zem != None:            
             flux = getattr(self, igm_abs+'_abs')(flux)
         return flux #* self.atmo_ex

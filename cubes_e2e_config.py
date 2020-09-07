@@ -36,14 +36,26 @@ wave_u = 356 * au.nm  # Effective wavelength, u band
 flux_U = 7561 * au.photon / au.cm**2 / au.s / au.nm  # Flux density @ 360.0 nm, mag_U = 0 (Vega)
 flux_u = 15393 * au.photon / au.cm**2 / au.s / au.nm  # Flux density @ 356.0 nm, mag_u = 0 (AB)
 
-eff_wave = [300, 320, 340, 360, 380, 400]*au.nm  # Efficiency sampling wavelengths
-eff_adc = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # ADC efficiency
-eff_slc = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Slicer efficiency
-eff_dch = [0.98, 0.98, 0.98, 0.98, 0.98, 0.98]  # Dichroics efficiency
-eff_spc = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Spectrograph efficiency
-eff_grt = [0.93, 0.93, 0.94, 0.94, 0.93, 0.93]  # Grating efficiency
-eff_ccd = [0.90, 0.90, 0.90, 0.90, 0.90, 0.90]  # CCD QE
-eff_tel = [0.85, 0.85, 0.85, 0.85, 0.85, 0.85]  # Telescope efficiency
+arm_n = 2  # Number of arms
+
+eff_wave = [300, 305, 310, 320, 325, 330, 340, 350, 360, 370, 375, 380, 385, 390, 400, 410, 420]*au.nm  # Wavelengths used to model efficiency
+eff_fib = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Fiber efficiency
+eff_adc = [0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94]  # ADC efficiency
+eff_opo = [0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98]  # Other pre-optics efficiency
+eff_slc = [0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93]  # Slicer efficiency
+eff_dch = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Dichroics efficiency
+eff_fld = [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97]  # Fold efficiency
+eff_col = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Collimator efficiency
+eff_cam = [0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93]  # Camera efficiency
+#sim.eff_spc = [0.79, 0.89, 0.94, 0.94, 0.92, 0.90]  # Spectrograph efficiency
+if arm_n == 1:
+    eff_grt = [0.79, 0.84, 0.88, 0.91, 0.93, 0.95, 0.97, 0.96, 0.94, 0.91, 0.88, 0.87, 0.85, 0.83, 0.78, 0.72, 0.65]  # Grating efficiency
+if arm_n == 2:
+    eff_grt = [0.90, 0.91, 0.93, 0.96, 0.97, 0.97, 0.95, 0.92, 0.93, 0.96, 0.97, 0.97, 0.96, 0.95, 0.92, 0.88, 0.85]  # Grating efficiency
+if arm_n == 3:
+    eff_grt = [0.91, 0.93, 0.95, 0.97, 0.97, 0.95, 0.95, 0.97, 0.96, 0.94, 0.95, 0.96, 0.97, 0.97, 0.95, 0.92, 0.88]  # Grating efficiency
+eff_ccd = [0.78, 0.79, 0.80, 0.80, 0.80, 0.80, 0.80, 0.79, 0.77, 0.72, 0.72, 0.72, 0.72, 0.72, 0.74, 0.76, 0.75]  # CCD QE
+eff_tel = [0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]  # Telescope efficiency
 resol = [2.0e4, 2.1e4, 2.2e4]  # Instrument resolution
 
 ccd_xsize = 6144*au.pixel  # X size of the CCD
