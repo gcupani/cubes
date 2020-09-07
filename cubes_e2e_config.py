@@ -1,4 +1,6 @@
+from cubes_etc_parameters import *
 from astropy import units as au
+from astropy.io import ascii
 import numpy as np
 
 # See http://www.astronomy.ohio-state.edu/~martini/usefuldata.html
@@ -62,8 +64,8 @@ ccd_xsize = 6144*au.pixel  # X size of the CCD
 ccd_ysize = 6144*au.pixel  # Y size of the CCD
 ccd_xbin = 1  # X binning of the CCD
 ccd_ybin = 1  # Y binning of the CCD
-pix_xsize = 15*au.micron  # X size of the pixels
-pix_ysize = 15*au.micron  # Y size of the pixels
+pix_xsize = pixsize*au.micron  # X size of the pixels (from cubes_etc_parameters.py)
+pix_ysize = pixsize*au.micron  # Y size of the pixels (from cubes_etc_parameters.py)
 spat_scale = 0.25*au.arcsec/(30*au.micron)  # Spatial scale
 arm_n = 2  # Number of arms
 if arm_n == 2:
@@ -83,7 +85,7 @@ slice_gap = 40*au.pixel  # Length of the slice
 ccd_bias = 100*au.adu
 #ccd_ron = 2*au.adu
 ccd_gain = 1.1*au.photon/au.adu
-ccd_ron = 2*au.photon / ccd_gain
+ccd_ron = ron*au.photon / ccd_gain  # (From cubes_etc_parameters.py)
 #ccd_dark = 0.5*au.adu/au.h
 ccd_dark = 3*au.photon/au.h / ccd_gain
 
