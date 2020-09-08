@@ -48,32 +48,8 @@ def eff_read(file, col):
     return np.array(ascii.read(jsp['advanced'][file])[col])
 
 eff_file = 'database/EFFICIENCIES'
-"""
-eff_wave = eff_read('ADCeff', 'col1')*0.1*au.nm  # Wavelengths used to model efficiency
-eff_fib = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Fiber efficiency
-eff_adc = [0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94]  # ADC efficiency
-eff_opo = [0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98, 0.98]  # Other pre-optics efficiency
-
-
-eff_slc = eff_read('SLICEReff', 'col2')  # Slicer efficiency
-eff_dch = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Dichroics efficiency
-eff_fld = [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97, 0.97]  # Fold efficiency
-eff_col = [0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96]  # Collimator efficiency
-eff_cam = [0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93, 0.93]  # Camera efficiency
-#sim.eff_spc = [0.79, 0.89, 0.94, 0.94, 0.92, 0.90]  # Spectrograph efficiency
-if arm_n == 1:
-    eff_grt = [0.79, 0.84, 0.88, 0.91, 0.93, 0.95, 0.97, 0.96, 0.94, 0.91, 0.88, 0.87, 0.85, 0.83, 0.78, 0.72, 0.65]  # Grating efficiency
-if arm_n == 2:
-    eff_grt = eff_read('GRATING2eff', 'col2')[1:]  # Grating efficiency
-if arm_n == 3:
-    eff_grt = eff_read('GRATING3eff', 'col2')[1:]  # Grating efficiency
-eff_ccd = eff_read('CCDeff', 'col2')[1:]  # CCD QE
-eff_tel = [0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85, 0.85]  # Telescope efficiency
-"""
 disp_file = 'database/DISPERSION'
-"""
-resol = [2.0e4, 2.1e4, 2.2e4]  # Instrument resolution
-"""
+
 ccd_xsize = int(jsp['advanced']['NXpix'])*au.pixel  # X size of the CCD
 ccd_ysize = int(jsp['advanced']['NYpix'])*au.pixel  # Y size of the CCD
 ccd_xbin = 1  # X binning of the CCD
@@ -88,21 +64,14 @@ if arm_n == 2:
 if arm_n == 3:
     wave_d = [335, 362.5]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
     wave_d_shift = 4*au.nm  # Shift of the dichroich wavelength from the CCD edge
-"""
-wave_sampl = [8.1e-3, 8.8e-3, 8.9e-3]*au.nm/au.pixel
-disp_wave = [300, 320, 340, 360, 380, 400]*au.nm  # Wavelengths used to model dispersion
-disp_sampl = [8.2e-3, 7.6e-3, 7.0e-3, 8.3e-3, 7.7e-3, 7.1e-3]*au.nm/au.pixel  # Dispersion sampling on CCD
-disp_resol = [1.86e4, 1.91e4, 1.96e4, 2.01e4, 2.06e4, 2.11e4]  # Resolution
-"""
+
 slice_n = int(jsp['advanced']['n_slices'])  # Number of slices
 slice_length = float(jsp['advanced']['slice_height'])*au.arcsec  # Length of the slice
 slice_width = float(jsp['advanced']['slice_width'])*au.arcsec  # Width of the slice
 slice_gap = 40*au.pixel  # Length of the slice
 ccd_bias = 100*au.adu
-#ccd_ron = 2*au.adu
 ccd_gain = 1.1*au.photon/au.adu
 ccd_ron = float(jsp['advanced']['ron'])*au.photon / ccd_gain
-#ccd_dark = 0.5*au.adu/au.h
 ccd_dark = 3*au.photon/au.h / ccd_gain
 
 seeing = float(jsp['seeing'])*au.arcsec  # Seeing
@@ -123,7 +92,6 @@ spec_templ = 'qso'  # Function for the template spectrum ('flat', 'PL', 'qso', '
 spec_file = jsp['spectrum']
 zem = None
 igm_abs = None
-#star_file = 'Castelliap000T5250g45.dat'
 extr_func = 'sum'  # Function for extracting the spectrum ('sum', 'opt' [very slow])
 snr_sampl = 1*au.nm  # Data points per SNR point
 
