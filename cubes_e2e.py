@@ -72,7 +72,7 @@ class CCD(object):
         #self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value)))
 
 
-    def add_arms(self, n, wave_sampl, wave_d, wave_d_shift):
+    def add_arms(self, n, wave_d, wave_d_shift):
         #self.arm_n = n
         #s = int(self.xsize.value/(n*3-1))
         #self.xcens = np.arange(s, self.xsize.value, 3*s)
@@ -109,7 +109,9 @@ class CCD(object):
         #print(self.wmaxs_d)
         if arm_n > 1:
             wmax = wave_d[0]+wave_d_shift
-            wmin = wmax-self.ysize*wave_sampl[0]
+            #wmin = wmax-self.ysize*wave_sampl[0]
+            wmin = wmax-self.ysize*np.mean(self.disp_sampl[0])
+
             #print(wmin)
             dw = np.full(int(self.ysize.value), 0.5*(wmin.value+wmax.value))
             w = np.ravel(self.disp_wave.value)
@@ -127,7 +129,9 @@ class CCD(object):
             self.wmaxs_d = np.array([wave_d[0].to(au.nm).value])
             for i in range(len(wave_d)): 
                 wmin = wave_d[i]-wave_d_shift
-                wmax = wmin+self.ysize*wave_sampl[i+1]
+                #wmax = wmin+self.ysize*wave_sampl[i+1]
+                wmax = wmin+self.ysize*np.mean(self.disp_sampl[i+1])
+
                 #print(wmax)
                 dw = np.full(int(self.ysize.value), 0.5*(wmin.value+wmax.value))
                 for j in range(10):
@@ -145,8 +149,10 @@ class CCD(object):
                     self.wmaxs_d = np.append(self.wmaxs_d, wmax.to(au.nm).value)
         else:
             wcen = 347.5*au.nm
-            wmin = wcen-self.ysize.value//2*self.ysize.unit*wave_sampl[0]
-            wmax = wcen+self.ysize.value//2*self.ysize.unit*wave_sampl[-1]
+            #wmin = wcen-self.ysize.value//2*self.ysize.unit*wave_sampl[0]
+            #wmax = wcen+self.ysize.value//2*self.ysize.unit*wave_sampl[-1]
+            wmin = wcen-self.ysize.value//2*self.ysize.unit*self.disp_sampl[0]
+            wmax = wcen+self.ysize.value//2*self.ysize.unit*self.disp_sampl[-1]
             dwmin = np.full(int(self.ysize.value), wcen)
             dwmax = np.full(int(self.ysize.value), wcen)
             for j in range(10):
@@ -1294,8 +1300,8 @@ class Spec(object):
         flux_targ = getattr(self, templ)()
         #self.normalize(flux_targ)
   
-        self.create(flux_targ, 'targ')
-        print("Input spectra created.")
+        mag_u = self.create(flux_targ, 'targ')
+        print("Input spectra created; target magnitude in the U band: %3.2f." % mag_u)
 
         if skycalc:
             self.create(flux_bckg, 'bckg', norm_flux=False)
@@ -1326,17 +1332,19 @@ class Spec(object):
         setattr(self, obj+'_tot', tot)
         #setattr(self, obj+'_norm', norm)
         
-        if obj == 'targ':
-            u = np.where(np.logical_and(self.wave > np.min(self.phot.wave_u), self.wave < np.max(self.phot.wave_u)))
-            waveu = self.wave[u]
-            dwaveu = np.median(self.wave[1:]-self.wave[:-1])
-            fluxu = self.targ_raw[u]
-            spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveu) 
+        u = np.where(np.logical_and(self.wave > np.min(self.phot.wave_u), self.wave < np.max(self.phot.wave_u)))
+        waveu = self.wave[u]
+        dwaveu = np.median(self.wave[1:]-self.wave[:-1])
+        fluxu = self.targ_raw[u]
+        spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveu) 
     
-            #b = cspline(self.phot.wave_u, self.phot.flux_u)(self.wave[w])
-            mag_u = -2.5*np.log10(np.sum(fluxu*spl_u*dwaveu.value)/np.sum(spl_u*dwaveu.value) 
-                                  / (flux_ref_Vega['U'] * self.phot.area * texp))
-            print("U magnitude: %3.1f" % mag_u)
+        #spl = cspline(self.wave, self.targ_raw)(self.wave.value)
+
+        flux_norm = np.sum(fluxu*spl_u)/np.sum(spl_u)
+        #flux_norm = np.sum(spl)/np.sum((spl_u*dwaveu).value)*au.ph/au.nm
+        
+        mag_u = -2.5*np.log10(flux_norm / (flux_ref_Vega['U'] * self.phot.area * texp))
+            
         
         """
         band = np.where(np.logical_and(self.wave>np.min(self.phot.wave_band), self.wave<np.max(self.phot.wave_band)))
@@ -1346,28 +1354,7 @@ class Spec(object):
         spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb)
         print(obj, np.sum((spl_band*fluxb*dwaveb).value)/self.phot.area)
         """
-
-    def custom_old(self):
-        name = self.file    
-        try:
-            data = Table(ascii.read(name, data_start=1, names=['col1', 'col2', 'col3', 'col4']))
-            wavef = data['col1']*0.1 * au.nm
-            fluxf = data['col2']
-            
-        except:
-            data = Table(ascii.read(name, data_start=2, names=['col1', 'col2'], format='no_header')[2:], 
-                         dtype=(float, float))#name)
-            wavef = data['col1']*0.1 * au.nm
-            fluxf = data['col2']
-        if zem != None:
-            wavef = wavef*(1+zem)
-        self.wavef = wavef
-        spl = cspline(wavef, fluxf)(self.wave.value)
-        spl = spl/cspline(wavef, fluxf)(self.phot.wave_ref)
-        flux = spl #* au.photon/au.nm
-        return flux #* self.atmo_ex
-
-    
+        return mag_u
 
     def custom(self):
         name = self.file    
@@ -1383,17 +1370,24 @@ class Spec(object):
         if zem != None:
             wavef = wavef*(1+zem)
 
+        if igm_abs in ['simple', 'inoue'] and zem != None:            
+            fluxf = getattr(self, igm_abs+'_abs')(wavef, fluxf)
+            
+            
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
         dwaveb = np.median(wavef[1:]-wavef[:-1])
         fluxb = fluxf[band]
         spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb) 
 
+
         self.wavef = wavef
         self.fluxf = fluxf
 
         spl = cspline(wavef, fluxf)(self.wave.value)
         flux = spl/np.sum((spl_band*fluxb*dwaveb).value)
+
+
         #flux_u = spl/np.sum((spl_u*fluxu*dwaveu).value)
         
         #print(flux, flux_u)
@@ -1410,8 +1404,8 @@ class Spec(object):
         """
         
         #flux = spl #* au.photon/au.nm
-        if igm_abs in ['simple', 'inoue'] and zem != None:            
-            flux = getattr(self, igm_abs+'_abs')(flux)
+        #if igm_abs in ['simple', 'inoue'] and zem != None:            
+        #    flux = getattr(self, igm_abs+'_abs')(flux)
         return flux #* self.atmo_ex
 
     
@@ -1563,20 +1557,20 @@ class Spec(object):
         return np.ones(self.wave.shape) #* self.atmo_ex
 
     
-    def inoue_abs(self,flux):
+    def inoue_abs(self, wave, flux):
         
         inoue = ascii.read('database/Table2_inoue.dat')
         
-        w = self.wave.value
+        w = wave.value
         w_ll = 91.18
         
         #ls_w = [np.where(np.logical_and(w>wi,
         #                                w>wi*(1+zem)))[0] for wi in w_i]
         
-        tau_ls_laf = np.zeros(len(self.wave))
-        tau_ls_dla = np.zeros(len(self.wave))
-        tau_lc_laf = np.zeros(len(self.wave))
-        tau_lc_dla = np.zeros(len(self.wave))
+        tau_ls_laf = np.zeros(len(wave))
+        tau_ls_dla = np.zeros(len(wave))
+        tau_lc_laf = np.zeros(len(wave))
+        tau_lc_dla = np.zeros(len(wave))
 
         for (i, wi, a_laf_1, a_laf_2, a_laf_3, a_dla_1, a_dla_2) in inoue:
             wi = 0.1*wi
@@ -1634,7 +1628,7 @@ class Spec(object):
         tau = tau_ls_laf + tau_ls_dla + tau_lc_laf + tau_lc_dla
         #print(np.sum(tau), np.sum(tau_ls_laf), np.sum(tau_ls_dla), np.sum(tau_lc_laf), np.sum(tau_lc_dla))
         corr = np.ones(len(flux))
-        z = self.wave.value/121.567 - 1
+        z = wave.value/121.567 - 1
         corr[z<zem] = np.exp(tau[z<zem])
         return flux/corr
 
@@ -1672,11 +1666,11 @@ class Spec(object):
             pass
             
         flux = spl#/np.mean(spl) #* au.photon/au.nm
-        if igm_abs and zem != None:
-            flux = self.lya_abs(flux)
+        #if igm_abs and zem != None:
+        #    flux = self.lya_abs(flux)
         return flux * self.atmo_ex
 
-    def simple_abs(self, flux):
+    def simple_abs(self, wave, flux):
         logN_0 = 12
         logN_1 = 14
         logN_2 = 18
@@ -1710,7 +1704,7 @@ class Spec(object):
         frac = 1
         
         corr = np.ones(len(flux))
-        z = self.wave.value/121.567 - 1
+        z = wave.value/121.567 - 1
 
         corr[z<zem] = (1-np.exp(tau_norm*(1+qso_zprox)**tau_index*frac)*f_0) \
                            / (zem-qso_zprox) * (z[z<zem]-qso_zprox.value) \
@@ -1812,7 +1806,7 @@ class Sim():
     def ccd_create(self):            
         self.check(True, 'phot', 'spec', 'psf')
         self._ccd = CCD(self._psf, self._spec, xsize=ccd_xsize, ysize=ccd_ysize, xbin=ccd_xbin, ybin=ccd_ybin, func=extr_func)
-        self._ccd.add_arms(n=arm_n, wave_d=wave_d, wave_sampl=wave_sampl, wave_d_shift=wave_d_shift)
+        self._ccd.add_arms(n=arm_n, wave_d=wave_d, wave_d_shift=wave_d_shift)
 
         
     def ccd_draw(self):
