@@ -44,6 +44,31 @@ class CCD(object):
         self.spat_scale = spat_scale
 
         self.func = func
+        
+        if disp_file is not None:
+            disp = ascii.read(disp_file)
+            for a in range(arm_n):
+                if a==2: 
+                    size = 'l' if ysize.value > 5000 else 's'
+                else:
+                    size = ''
+                wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)])*0.1
+                sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)])*1e3
+                resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+                if a==0:
+                    self.disp_wave = wave
+                    self.disp_sampl = sampl
+                    self.disp_resol = resol
+                else:
+                    self.disp_wave = np.vstack((self.disp_wave, wave))
+                    self.disp_sampl = np.vstack((self.disp_sampl, sampl))
+                    self.disp_resol = np.vstack((self.disp_resol, resol))
+
+            self.disp_wave *= au.nm
+            self.disp_sampl *= au.nm/au.pixel
+
+
+        
         #self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value)))
 
 
@@ -87,8 +112,8 @@ class CCD(object):
             wmin = wmax-self.ysize*wave_sampl[0]
             #print(wmin)
             dw = np.full(int(self.ysize.value), 0.5*(wmin.value+wmax.value))
-            w = np.ravel(disp_wave.value)
-            s = np.ravel(disp_sampl)*ccd_ybin
+            w = np.ravel(self.disp_wave.value)
+            s = np.ravel(self.disp_sampl)*ccd_ybin
             w = w[np.argsort(w)]
             s = s[np.argsort(w)]
             for j in range(10):
@@ -125,8 +150,8 @@ class CCD(object):
             dwmin = np.full(int(self.ysize.value), wcen)
             dwmax = np.full(int(self.ysize.value), wcen)
             for j in range(10):
-                wmin2 = wcen.value-np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dwmin))/2
-                wmax2 = wcen.value+np.sum(cspline(np.ravel(disp_wave.value), np.ravel(disp_sampl)*ccd_ybin)(dwmax))/2
+                wmin2 = wcen.value-np.sum(cspline(np.ravel(self.disp_wave.value), np.ravel(self.disp_sampl)*ccd_ybin)(dwmin))/2
+                wmax2 = wcen.value+np.sum(cspline(np.ravel(self.disp_wave.value), np.ravel(self.disp_sampl)*ccd_ybin)(dwmax))/2
                 dwmin = np.linspace(wmin2, wcen.value, int(self.ysize.value))
                 dwmax = np.linspace(wcen.value, wmax2, int(self.ysize.value))
 
@@ -220,9 +245,9 @@ class CCD(object):
                 spl_resol = np.array(disp_resol)
             """
              
-            spl_wave = disp_wave[i]
-            spl_sampl = disp_sampl[i]
-            spl_resol = np.array(disp_resol[i])
+            spl_wave = self.disp_wave[i]
+            spl_sampl = self.disp_sampl[i]
+            spl_resol = np.array(self.disp_resol[i])
 
             disp = cspline(spl_wave, spl_resol*spl_sampl*ccd_ybin)(self.arm_wave)
             #self.spec.fwhm.append(self.arm_wave/resol[i]/wave_sampl[i])
@@ -306,7 +331,7 @@ class CCD(object):
         wave = self.wave_grid(wmin, wmax)
         
         # Apply correct sampling
-        sampl = cspline(disp_wave[self.arm_counter], disp_sampl[self.arm_counter]*ccd_ybin)(wave)
+        sampl = cspline(self.disp_wave[self.arm_counter], self.disp_sampl[self.arm_counter]*ccd_ybin)(wave)
         wave = wmin+np.cumsum(sampl)
         targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
         bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
@@ -424,7 +449,7 @@ class CCD(object):
         xsize = pix_xsize*ccd_xbin
         ysize = pix_ysize*ccd_ybin
         xreal = pix_xsize*ccd_xbin*spat_scale
-        yreal = np.mean(disp_sampl.value)*ccd_ybin*disp_sampl.unit*au.pixel
+        yreal = np.mean(self.disp_sampl.value)*ccd_ybin*self.disp_sampl.unit*au.pixel
         size = max(xsize.value, ysize.value)
         
         self.ax_r.add_patch(patches.Rectangle((0,0), xsize.value, ysize.value, edgecolor='b', facecolor='b', alpha=0.3))
@@ -475,8 +500,8 @@ class CCD(object):
                 spl_sampl = disp_sampl
             """
 
-            spl_wave = disp_wave[i]
-            spl_sampl = disp_sampl[i]
+            spl_wave = self.disp_wave[i]
+            spl_sampl = self.disp_sampl[i]
             self.ax_s[1].plot(self.spec.arm_wave[i], cspline(spl_wave, spl_sampl*ccd_ybin)(self.spec.arm_wave[i]), 
                               label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
 
@@ -508,6 +533,7 @@ class CCD(object):
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
                            label='Total including extinction' if i==0 else '', color='C0', linestyle='--')
 
+            """
             self.ax_e.scatter(eff_wave, eff_fib, color='C0')
             self.ax_e.scatter(eff_wave, eff_adc, color='C1')
             self.ax_e.scatter(eff_wave, eff_opo, color='C2')
@@ -519,6 +545,8 @@ class CCD(object):
             self.ax_e.scatter(eff_wave, eff_grt, color='C8')
             self.ax_e.scatter(eff_wave, eff_ccd, color='C9')
             self.ax_e.scatter(eff_wave, eff_tel, color='black')
+            """
+            
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_e.set_ylabel('Fractional throughput')
         self.ax_e.legend()
@@ -580,7 +608,7 @@ class CCD(object):
             wave_extr = self.wave_grid(self.wmins[a], self.wmaxs[a])
             
             # Apply correct sampling
-            sampl = cspline(disp_wave[a], disp_sampl[a]*ccd_ybin)(wave_extr)
+            sampl = cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(wave_extr)
             wave_extr = self.wmins[a]+np.cumsum(sampl)*self.wmins[a].unit
 
 
@@ -817,7 +845,22 @@ class CCD(object):
     def tot_eff(self, wave, wmin_d, wmax_d, fact=2):
         dch_shape = expit(fact*(wave-wmin_d))*expit(fact*(wmax_d-wave))
         i = self.arm_counter
-        
+        if eff_file is not None:
+            eff = ascii.read(eff_file)
+            eff_wave = np.array(eff['wavelength'])*0.1*au.nm
+            eff_fib = np.array(eff['fiber'])
+            eff_adc = np.array(eff['adc'])
+            eff_opo = np.array(eff['other_preopt'])
+            eff_slc = np.array(eff['slicer'])
+            eff_dch = np.array(eff['dichroic'])
+            eff_fld = np.array(eff['fold'])
+            eff_col = np.array(eff['collimator'])
+            eff_cam = np.array(eff['camera'])
+            
+            eff_grt = np.array(eff['grating_'+str(arm_n)+'ch'])
+            eff_ccd = np.array(eff['qe'])
+            eff_tel = np.array(eff['telescope'])
+            
         fib = cspline(eff_wave, eff_fib)(wave)
         adc = cspline(eff_wave, eff_adc)(wave)
         opo = cspline(eff_wave, eff_opo)(wave)
@@ -1274,6 +1317,7 @@ class Spec(object):
             raw = flux * getattr(self.phot, obj)
         else:
             raw = flux * au.ph/au.nm/au.arcsec**2
+        
         ext = raw*self.atmo_ex
         tot = np.sum(ext)/len(ext) * (self.wmax-self.wmin)
         #norm = ext/np.sum(ext) / au.nm
@@ -1281,6 +1325,18 @@ class Spec(object):
         setattr(self, obj+'_ext', ext)
         setattr(self, obj+'_tot', tot)
         #setattr(self, obj+'_norm', norm)
+        
+        if obj == 'targ':
+            u = np.where(np.logical_and(self.wave > np.min(self.phot.wave_u), self.wave < np.max(self.phot.wave_u)))
+            waveu = self.wave[u]
+            dwaveu = np.median(self.wave[1:]-self.wave[:-1])
+            fluxu = self.targ_raw[u]
+            spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveu) 
+    
+            #b = cspline(self.phot.wave_u, self.phot.flux_u)(self.wave[w])
+            mag_u = -2.5*np.log10(np.sum(fluxu*spl_u*dwaveu.value)/np.sum(spl_u*dwaveu.value) 
+                                  / (flux_ref_Vega['U'] * self.phot.area * texp))
+            print("U magnitude: %3.1f" % mag_u)
         
         """
         band = np.where(np.logical_and(self.wave>np.min(self.phot.wave_band), self.wave<np.max(self.phot.wave_band)))
@@ -1331,19 +1387,13 @@ class Spec(object):
         waveb = wavef[band]
         dwaveb = np.median(wavef[1:]-wavef[:-1])
         fluxb = fluxf[band]
-        spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb)    
+        spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb) 
 
-        u = np.where(np.logical_and(wavef>np.min(self.phot.wave_u), wavef<np.max(self.phot.wave_u)))
-        waveu = wavef[u]
-        dwaveu = np.median(wavef[1:]-wavef[:-1])
-        fluxu = fluxf[u]
-        spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveb)    
-
-            
         self.wavef = wavef
+        self.fluxf = fluxf
+
         spl = cspline(wavef, fluxf)(self.wave.value)
         flux = spl/np.sum((spl_band*fluxb*dwaveb).value)
-
         #flux_u = spl/np.sum((spl_u*fluxu*dwaveu).value)
         
         #print(flux, flux_u)
