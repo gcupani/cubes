@@ -78,6 +78,8 @@ seeing = float(jsp['seeing'])*au.arcsec  # Seeing
 psf_func = 'gaussian'  # Function to represent the PSF ('tophat', 'gaussian', 'moffat')
 psf_sampl = 1000*au.pixel  # Size of the PSF image
 psf_cen = (0,0)  # Center of the PSF
+targ_ext = False
+targ_sersic_params = {'amplitude': 1, 'r_eff': 20, 'n': 4, 'x_0': 0, 'y_0': 0, 'ellip': 0.5, 'theta': 1}
 area = (400*au.cm)**2 * np.pi  # Telescope area
 texp = float(jsp['exposureTime'])*au.s  # Exposure time
 mag_syst = 'Vega'  # Magnitude system
@@ -97,7 +99,8 @@ snr_sampl = 1*au.nm  # Data points per SNR point
 
 phot_pars = ['bckg_mag', 'mag_syst', 'mag_band', 'targ_mag', 'texp']
 spec_pars = ['spec_templ', 'spec_file', 'qso_zem', 'qso_lya_abs', 'airmass', 'pwv', 'moond']
-psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'slice_n', 'slice_length', 'slice_width', 'seeing']
+psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'targ_ext', 'targ_sersic_params', 'slice_n', 'slice_length', 'slice_width', 
+            'seeing']
 ccd_pars = ['ccd_gain', 'ccd_ron', 'ccd_dark', 'ccd_xsize', 'ccd_ysize', 'pix_xsize', 'pix_ysize', 'ccd_xbin', 'ccd_ybin',
             'arm_n', 'wave_d', 'wave_d_shift', 'eff_file', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 
             'disp_file', 'disp_wave', 'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']

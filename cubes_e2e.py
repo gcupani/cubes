@@ -9,7 +9,7 @@ from astropy import units as au
 from astropy import constants as ac
 from astropy.io import ascii, fits
 from astropy.modeling.fitting import LevMarLSQFitter as lm
-from astropy.modeling.functional_models import Gaussian1D, Gaussian2D, Moffat2D
+from astropy.modeling.functional_models import Gaussian1D, Gaussian2D, Moffat2D, Sersic2D
 from astropy.table import Table
 import matplotlib
 from matplotlib import gridspec
@@ -21,6 +21,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline as cspline #interp1d
 from scipy.interpolate import UnivariateSpline as uspline
 from scipy.ndimage import gaussian_filter, interpolation
+from scipy.signal import fftconvolve
 from scipy.special import expit
 import sys
 import warnings
@@ -48,17 +49,17 @@ class CCD(object):
         if disp_file is not None:
             disp = ascii.read(disp_file)
             for a in range(arm_n):
-                if a==2: 
+                if arm_n==3: 
                     size = 'l' if ysize.value > 5000 else 's'
                 else:
                     size = ''
-                wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)])*0.1
-                sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)])*1e3
+                wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)+size])*0.1
+                sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)+size])*1e3
                 resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
                 if a==0:
-                    self.disp_wave = wave
-                    self.disp_sampl = sampl
-                    self.disp_resol = resol
+                    self.disp_wave = [wave]
+                    self.disp_sampl = [sampl]
+                    self.disp_resol = [resol]
                 else:
                     self.disp_wave = np.vstack((self.disp_wave, wave))
                     self.disp_sampl = np.vstack((self.disp_sampl, sampl))
@@ -279,8 +280,8 @@ class CCD(object):
 
         signal = np.round(sl_targ_prof+sl_bckg_prof)
 
-        targ_noise = np.random.normal(0., 1., sl_targ_prof.shape)*np.sqrt(sl_targ_prof)
-        bckg_noise = np.random.normal(0., 1., sl_bckg_prof.shape)*np.sqrt(sl_bckg_prof)
+        targ_noise = np.random.normal(0., 1., sl_targ_prof.shape)*np.sqrt(np.abs(sl_targ_prof))
+        bckg_noise = np.random.normal(0., 1., sl_bckg_prof.shape)*np.sqrt(np.abs(sl_bckg_prof))
         dsignal = targ_noise+bckg_noise
         noise = np.sqrt(targ_noise**2 + bckg_noise**2 + self.dark**2 + self.ron**2)
         self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = np.round(signal+dsignal)
@@ -722,7 +723,10 @@ class PSF(object):
         self.x, self.y = np.meshgrid(x, y)
 
         getattr(self, func)()  # Apply the chosen function for the PSF
-
+        if targ_ext:
+            z = self.sersic()
+            self.z = fftconvolve(self.z, z, mode='same')#[psf_cen[1]-9:psf_cen[1]+9,psf_cen[0]-9:psf_cen[0]+9])
+        
         self.z_norm = self.z/np.sum(self.z)
 
         self.z_norm_a = np.ones(self.z.shape)/self.z.size
@@ -867,7 +871,12 @@ class PSF(object):
         cax.set_xlabel('Photon')
         fig.colorbar(im, cax=cax, orientation='vertical')
 
-
+    
+    def sersic(self):
+        m = Sersic2D(**targ_sersic_params)
+        return m.evaluate(self.x, self.y, **targ_sersic_params)
+        
+        
     def gaussian(self, cen=psf_cen):
         ampl = 1
         theta = 0
@@ -1077,7 +1086,7 @@ class Spec(object):
                 line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:], s=2, c='C0')
                 line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:], s=2, c='C1')
                 line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:], s=2, c='C2')
-                line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_romn_extr[:], s=2, c='C3')
+                line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:], s=2, c='C3')
 
         line2.set_label('Target')
         line3.set_label('Background')
