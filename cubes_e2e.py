@@ -67,7 +67,7 @@ class CCD(object):
 
             self.disp_wave *= au.nm
             self.disp_sampl *= au.nm/au.pixel
-
+            #print(self.disp_wave)
 
 
     def add_arms(self, n, wave_d, wave_d_shift):
@@ -143,6 +143,10 @@ class CCD(object):
         self.wmins_d = self.wmins_d * au.nm
         self.wmaxs_d = self.wmaxs_d * au.nm
 
+        #print(self.wmins)
+        #print(self.wmaxs)
+
+        
         self.mod_init = []
         self.sl_cen = []
         self.spec.m_d = []
@@ -484,6 +488,12 @@ class CCD(object):
                 err_ron_extr = np.sqrt(err_ron_extr**2 + n_ron_extr**2)
                 
                 pix_extr = pix_extr+p_extr
+            print("SNR across arm %i:               " % a)
+            snr_extr = flux_extr/err_extr
+            for w in self.disp_wave[a]:
+                w_near = wave_extr.flat[np.abs(wave_extr.value - w.value).argmin()]
+                #print(" %3.2f %s: %3.0f" % (w.value, w.unit, cspline(wave_extr, snr_extr)(w)))
+                print(" %3.2f %s: %3.0f" % (w.value, w.unit, snr_extr[wave_extr==w_near]))
 
 
             dw = (wave_extr[2:]-wave_extr[:-2])*0.5
@@ -906,7 +916,7 @@ class PSF(object):
 
 class Spec(object):
 
-    def __init__(self, phot, file=None, wmin=300*au.nm, wmax=400*au.nm,
+    def __init__(self, phot, file=None, wmin=295*au.nm, wmax=430*au.nm,
                  dw=1e-3*au.nm, templ=spec_templ):
         self.phot = phot
         self.file = file

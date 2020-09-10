@@ -58,17 +58,23 @@ pix_xsize = int(jsp['advanced']['pixsize'])*au.micron  # X size of the pixels
 pix_ysize = int(jsp['advanced']['pixsize'])*au.micron  # Y size of the pixels
 spat_scale = 0.25*au.arcsec/(30*au.micron)  # Spatial scale
 arm_n = 2  # Number of arms
+if arm_n == 1:
+    wave_d = []*au.nm 
 if arm_n == 2:
-    wave_d = [347.5]*au.nm  # Wavelength of dichroich
+    wave_d = [349]*au.nm  # Wavelength of dichroich
     wave_d_shift = 2*au.nm  # Shift of the dichroich wavelength from the CCD edge
-if arm_n == 3:
-    wave_d = [335, 362.5]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
+if arm_n == 3 and ccd_ysize.value < 5000:
+    wave_d = [334, 364]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
     wave_d_shift = 4*au.nm  # Shift of the dichroich wavelength from the CCD edge
+if arm_n == 3 and ccd_ysize.value > 5000:
+    wave_d = [340, 380]*au.nm  # Wavelength of dichroichswave_d = [336, 367]*au.nm
+    wave_d_shift = 4*au.nm  # Shift of the dichroich wavelength from the CCD edge
+
 
 slice_n = int(jsp['advanced']['n_slices'])  # Number of slices
 slice_length = float(jsp['advanced']['slice_height'])*au.arcsec  # Length of the slice
 slice_width = float(jsp['advanced']['slice_width'])*au.arcsec  # Width of the slice
-slice_gap = 40*au.pixel  # Length of the slice
+slice_gap = 8*au.pixel  # Length of the slice
 ccd_bias = 100*au.adu
 ccd_gain = 1.1*au.photon/au.adu
 ccd_ron = float(jsp['advanced']['ron'])*au.photon / ccd_gain
