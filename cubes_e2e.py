@@ -916,7 +916,7 @@ class PSF(object):
 
 class Spec(object):
 
-    def __init__(self, phot, file=None, wmin=295*au.nm, wmax=430*au.nm,
+    def __init__(self, phot, file=None, wmin=wmin, wmax=wmax,
                  dw=1e-3*au.nm, templ=spec_templ):
         self.phot = phot
         self.file = file
@@ -1368,7 +1368,7 @@ class Sim():
 
     def spec_create(self):
         self.check(True, 'phot')
-        self._spec = Spec(self._phot, file=spec_file, templ=spec_templ)
+        self._spec = Spec(self._phot, file=spec_file, wmin=wmin, wmax=wmax, templ=spec_templ)
 
 
     def spec_draw(self):

@@ -98,13 +98,15 @@ moond = 0  # Days from new moon
 
 spec_templ = 'qso'  # Function for the template spectrum ('flat', 'PL', 'qso', 'star')
 spec_file = jsp['spectrum']
+wmin = 295 * au.nm  # Minimum wavelength
+wmax = 430 * au.nm  # Maximum wavelength
 zem = None
 igm_abs = None
 extr_func = 'sum'  # Function for extracting the spectrum ('sum', 'opt' [very slow])
 snr_sampl = 1*au.nm  # Data points per SNR point
 
 phot_pars = ['bckg_mag', 'mag_syst', 'mag_band', 'targ_mag', 'texp']
-spec_pars = ['spec_templ', 'spec_file', 'qso_zem', 'qso_lya_abs', 'airmass', 'pwv', 'moond']
+spec_pars = ['spec_templ', 'spec_file', 'wmin', 'wmax', 'qso_zem', 'qso_lya_abs', 'airmass', 'pwv', 'moond']
 psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'targ_ext', 'targ_sersic_params', 'slice_n', 'slice_length', 'slice_width', 
             'seeing']
 ccd_pars = ['ccd_gain', 'ccd_ron', 'ccd_dark', 'ccd_xsize', 'ccd_ysize', 'pix_xsize', 'pix_ysize', 'ccd_xbin', 'ccd_ybin',
