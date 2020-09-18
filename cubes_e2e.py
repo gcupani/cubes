@@ -198,6 +198,8 @@ class CCD(object):
                             wmax_d=M_d.value)
             self.spec.m_d.append(m_d.value)
             self.spec.M_d.append(M_d.value)
+
+
             self.spec.arm_wave.append(self.arm_wave)
             self.spec.arm_targ.append(self.arm_targ)
              
@@ -208,7 +210,7 @@ class CCD(object):
             disp = cspline(spl_wave, spl_resol*spl_sampl*ccd_ybin)(self.arm_wave)
             self.spec.fwhm.append(self.arm_wave/disp)
             self.spec.resol.append(cspline(spl_wave, spl_resol)(self.arm_wave))
-
+            
             self.targ_prof = np.append(self.targ_prof, self.sl_targ_prof)
             self.bckg_prof = np.append(self.bckg_prof, self.sl_bckg_prof)
             self.sl_targ_peak = self.sl_targ_prof[self.sl_targ_prof>99e-2*np.max(self.sl_targ_prof)]
@@ -253,8 +255,11 @@ class CCD(object):
         # Apply correct sampling
         sampl = cspline(self.disp_wave[self.arm_counter], self.disp_sampl[self.arm_counter]*ccd_ybin)(wave)
         wave = wmin+np.cumsum(sampl)
-        targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
-        bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
+        #targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
+        #bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
+        targ = np.interp(wave, wave_red, targ_red)*targ_red.unit
+        bckg = np.interp(wave, wave_red, bckg_red)*bckg_red.unit
+
         
         # Since self.spec.targ/bckg_norm were normalized, we have to normalize targ/bckg again after csplining
         targ_arm = targ_red[np.logical_and(wave_red>wmin, wave_red<wmax)]
@@ -396,7 +401,8 @@ class CCD(object):
             self.ax_e.plot(self.eff_wave[i], self.eff_ccd[i], label='CCD' if i==0 else '', color='C9', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_tel[i], label='Telescope' if i==0 else '', color='black', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i], label='Total' if i==0 else '', color='C0')
-            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
+#            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
+            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*np.interp(self.eff_wave[i], self.spec.wave, self.spec.atmo_ex),
                            label='Total including extinction' if i==0 else '', color='C0', linestyle='--')
             
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
@@ -619,7 +625,7 @@ class CCD(object):
             return new
 
 
-    def tot_eff(self, wave, wmin_d, wmax_d, fact=2):
+    def tot_eff(self, wave, wmin_d, wmax_d, fact=2, method='interp'):
         dch_shape = expit(fact*(wave-wmin_d))*expit(fact*(wmax_d-wave))
         i = self.arm_counter
         if eff_file is not None:
@@ -638,17 +644,30 @@ class CCD(object):
             eff_ccd = np.array(eff['qe'])
             eff_tel = np.array(eff['telescope'])
             
-        fib = cspline(eff_wave, eff_fib)(wave)
-        adc = cspline(eff_wave, eff_adc)(wave)
-        opo = cspline(eff_wave, eff_opo)(wave)
-        slc = cspline(eff_wave, eff_slc)(wave)
-        dch = cspline(eff_wave, eff_dch)(wave) * dch_shape
-        fld = cspline(eff_wave, eff_fld)(wave)
-        col = cspline(eff_wave, eff_col)(wave)
-        cam = cspline(eff_wave, eff_cam)(wave)
-        grt = cspline(eff_wave, eff_grt)(wave)
-        ccd = cspline(eff_wave, eff_ccd)(wave)
-        tel = cspline(eff_wave, eff_tel)(wave)
+        if method=='cspline':
+            fib = cspline(eff_wave, eff_fib)(wave)
+            adc = cspline(eff_wave, eff_adc)(wave)
+            opo = cspline(eff_wave, eff_opo)(wave)
+            slc = cspline(eff_wave, eff_slc)(wave)
+            dch = cspline(eff_wave, eff_dch)(wave) * dch_shape
+            fld = cspline(eff_wave, eff_fld)(wave)
+            col = cspline(eff_wave, eff_col)(wave)
+            cam = cspline(eff_wave, eff_cam)(wave)
+            grt = cspline(eff_wave, eff_grt)(wave)
+            ccd = cspline(eff_wave, eff_ccd)(wave)
+            tel = cspline(eff_wave, eff_tel)(wave)
+        elif method=='interp':
+            fib = np.interp(wave, eff_wave, eff_fib)
+            adc = np.interp(wave, eff_wave, eff_adc)
+            opo = np.interp(wave, eff_wave, eff_opo)
+            slc = np.interp(wave, eff_wave, eff_slc)
+            dch = np.interp(wave, eff_wave, eff_dch) * dch_shape
+            fld = np.interp(wave, eff_wave, eff_fld)
+            col = np.interp(wave, eff_wave, eff_col)
+            cam = np.interp(wave, eff_wave, eff_cam)
+            grt = np.interp(wave, eff_wave, eff_grt)
+            ccd = np.interp(wave, eff_wave, eff_ccd)
+            tel = np.interp(wave, eff_wave, eff_tel)
         tot = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd * tel
         
         self.eff_wave.append(wave)
@@ -733,9 +752,10 @@ class PSF(object):
         self.x, self.y = np.meshgrid(x, y)
 
         getattr(self, func)()  # Apply the chosen function for the PSF
-        if targ_ext:
-            z = self.sersic()
+        if targ_prof is not None:
+            z = getattr(self, targ_prof)()
             self.z = fftconvolve(self.z, z, mode='same')#[psf_cen[1]-9:psf_cen[1]+9,psf_cen[0]-9:psf_cen[0]+9])
+            #print(self.z)
         
         self.z_norm = self.z/np.sum(self.z)
 
@@ -743,6 +763,8 @@ class PSF(object):
         self.z_targ = self.z_norm * self.spec.targ_tot  # Counts from the target
         self.z_bckg = self.z_norm_a * self.spec.bckg_tot*self.area  # Counts from the background
         self.z = self.z_targ + self.z_bckg
+        #print(self.z)
+
         self.spec.z_targ = self.z_targ
         
         
@@ -882,10 +904,10 @@ class PSF(object):
         fig.colorbar(im, cax=cax, orientation='vertical')
 
     
-    def sersic(self):
-        m = Sersic2D(**targ_sersic_params)
-        return m.evaluate(self.x, self.y, **targ_sersic_params)
-        
+    def inv_rad(self):
+        ret = np.minimum(targ_inv_rad_params['amplitude']/np.sqrt(self.x**2+self.y**2), targ_inv_rad_params['threshold']*np.ones(self.x.shape))
+        ret = targ_inv_rad_params['amplitude']/np.sqrt(self.x**2+self.y**2)
+        return ret
         
     def gaussian(self, cen=psf_cen):
         ampl = 1
@@ -908,6 +930,11 @@ class PSF(object):
         self.fwhm = m.fwhm
 
 
+    def sersic(self):
+        m = Sersic2D(**targ_sersic_params)
+        return m.evaluate(self.x, self.y, **targ_sersic_params)
+        
+        
     def tophat(self, cen=(0,0)):
         self.z = np.array((self.x-cen[0])**2 + (self.y-cen[1])**2
                           < (self.seeing.value/2)**2, dtype=int)
