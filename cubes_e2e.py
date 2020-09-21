@@ -752,12 +752,15 @@ class PSF(object):
         self.x, self.y = np.meshgrid(x, y)
 
         getattr(self, func)()  # Apply the chosen function for the PSF
+        prof_sel = np.ones(self.z.shape, dtype=bool)
         if targ_prof is not None:
-            z = getattr(self, targ_prof)()
+            z, prof_sel = getattr(self, targ_prof)()
             self.z = fftconvolve(self.z, z, mode='same')#[psf_cen[1]-9:psf_cen[1]+9,psf_cen[0]-9:psf_cen[0]+9])
             #print(self.z)
-        
-        self.z_norm = self.z/np.sum(self.z)
+            
+        self.z_norm_sel_ratio = np.sum(prof_sel)/np.size(self.z)
+        #print(self.z_norm_sel_ratio)
+        self.z_norm = self.z/np.sum(self.z[prof_sel])
 
         self.z_norm_a = np.ones(self.z.shape)/self.z.size
         self.z_targ = self.z_norm * self.spec.targ_tot  # Counts from the target
@@ -876,7 +879,9 @@ class PSF(object):
     def draw(self):
         fig_p, self.ax_p = plt.subplots(figsize=(10,7))
         self.ax_p.set_title("Photon balance (slit)")
-        sl_v = np.array([self.spec.targ_tot.value, np.sum(self.targ_slice.value), 
+        #sl_v = np.array([self.spec.targ_tot.value, np.sum(self.targ_slice.value), 
+        #                 np.sum(self.z_targ.value)-np.sum(self.targ_slice.value)])
+        sl_v = np.array([np.sum(self.z_targ.value), np.sum(self.targ_slice.value), 
                          np.sum(self.z_targ.value)-np.sum(self.targ_slice.value)])
         sl_l = ["total: %2.3e %s"  % (sl_v[0], self.spec.targ_tot.unit), 
                 "on slit: %2.3e %s"  % (sl_v[1], self.z_targ.unit), 
@@ -904,10 +909,10 @@ class PSF(object):
         fig.colorbar(im, cax=cax, orientation='vertical')
 
     
-    def inv_rad(self):
-        ret = np.minimum(targ_inv_rad_params['amplitude']/np.sqrt(self.x**2+self.y**2), targ_inv_rad_params['threshold']*np.ones(self.x.shape))
-        ret = targ_inv_rad_params['amplitude']/np.sqrt(self.x**2+self.y**2)
-        return ret
+    def invrad(self):
+        ret = 1/np.sqrt(self.x**2+self.y**2)
+        sel = self.x**2+self.y**2 < targ_invrad_params['r_eff']**2
+        return ret, sel
         
     def gaussian(self, cen=psf_cen):
         ampl = 1
@@ -932,7 +937,8 @@ class PSF(object):
 
     def sersic(self):
         m = Sersic2D(**targ_sersic_params)
-        return m.evaluate(self.x, self.y, **targ_sersic_params)
+        sel = self.x**2+self.y**2 < targ_sersic_params['r_eff']**2
+        return m.evaluate(self.x, self.y, **targ_sersic_params), sel
         
         
     def tophat(self, cen=(0,0)):
