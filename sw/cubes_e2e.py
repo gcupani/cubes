@@ -257,8 +257,10 @@ class CCD(object):
         wave = wmin+np.cumsum(sampl)
         #targ = cspline(wave_red, targ_red)(wave)*targ_red.unit
         #bckg = cspline(wave_red, bckg_red)(wave)*bckg_red.unit
-        targ = np.interp(wave, wave_red, targ_red)*targ_red.unit
-        bckg = np.interp(wave, wave_red, bckg_red)*bckg_red.unit
+        #print('wave', 'wave_red', 'targ_red')
+        #print(wave, wave_red, targ_red)
+        targ = np.interp(wave, wave_red, targ_red.value)*targ_red.unit
+        bckg = np.interp(wave, wave_red, bckg_red.value)*bckg_red.unit
 
         
         # Since self.spec.targ/bckg_norm were normalized, we have to normalize targ/bckg again after csplining
@@ -402,7 +404,9 @@ class CCD(object):
             self.ax_e.plot(self.eff_wave[i], self.eff_tel[i], label='Telescope' if i==0 else '', color='black', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i], label='Total' if i==0 else '', color='C0')
 #            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
-            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*np.interp(self.eff_wave[i], self.spec.wave, self.spec.atmo_ex),
+            #print(self.eff_wave[i], self.spec.wave, self.spec.atmo_ex)
+            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*np.interp(self.eff_wave[i], self.spec.wave.value, 
+                                                                       self.spec.atmo_ex),
                            label='Total including extinction' if i==0 else '', color='C0', linestyle='--')
             
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
