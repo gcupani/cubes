@@ -657,17 +657,17 @@ class CCD(object):
             ccd = cspline(eff_wave, eff_ccd)(wave)
             tel = cspline(eff_wave, eff_tel)(wave)
         elif method=='interp':
-            fib = np.interp(wave, eff_wave, eff_fib)
-            adc = np.interp(wave, eff_wave, eff_adc)
-            opo = np.interp(wave, eff_wave, eff_opo)
-            slc = np.interp(wave, eff_wave, eff_slc)
-            dch = np.interp(wave, eff_wave, eff_dch) * dch_shape
-            fld = np.interp(wave, eff_wave, eff_fld)
-            col = np.interp(wave, eff_wave, eff_col)
-            cam = np.interp(wave, eff_wave, eff_cam)
-            grt = np.interp(wave, eff_wave, eff_grt)
-            ccd = np.interp(wave, eff_wave, eff_ccd)
-            tel = np.interp(wave, eff_wave, eff_tel)
+            fib = np.interp(wave, eff_wave.value, eff_fib)
+            adc = np.interp(wave, eff_wave.value, eff_adc)
+            opo = np.interp(wave, eff_wave.value, eff_opo)
+            slc = np.interp(wave, eff_wave.value, eff_slc)
+            dch = np.interp(wave, eff_wave.value, eff_dch) * dch_shape
+            fld = np.interp(wave, eff_wave.value, eff_fld)
+            col = np.interp(wave, eff_wave.value, eff_col)
+            cam = np.interp(wave, eff_wave.value, eff_cam)
+            grt = np.interp(wave, eff_wave.value, eff_grt)
+            ccd = np.interp(wave, eff_wave.value, eff_ccd)
+            tel = np.interp(wave, eff_wave.value, eff_tel)
         tot = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd * tel
         
         self.eff_wave.append(wave)
