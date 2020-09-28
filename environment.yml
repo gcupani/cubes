@@ -1,8 +1,0 @@
-name: cubes
-channels:
-  - conda-forge
-dependencies:
-  - astropy
-  - matplotlib
-  - numpy
-  - scipy

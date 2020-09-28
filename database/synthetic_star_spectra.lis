@@ -1,0 +1,33 @@
+# More spectra can be found in http://wwwuser.oats.inaf.it/castelli/spectra.html
+# and uploded as Custom spectrum in appropriate format (see reference doc).
+# Extension of the grid by Munari et al. 2005, A&A 442, 1127
+#=============================[alpha/Fe]=0.0===========================================
+# vturb=2.0 km/s, l/H=0.5, vsini=0 km/s, Res=1A
+Teff=5250 log(g)=4.5 [M/H]=0.0 [a/Fe]=0.0       database/Castellivr0ap000T5250g45.flx   
+Teff=5750 log(g)=4.5 [M/H]=0.0 [a/Fe]=0.0       database/Castellivr0ap000T5750g45.flx  
+Teff=6000 log(g)=4.5 [M/H]=0.0 [a/Fe]=0.0       database/Castellivr0ap000T6000g45.flx
+#============================[alpha/Fe]=0.4=============================================
+Teff=6000 log(g)=4.0 [M/H]=-1.0 [a/Fe]=0.4     database/Castellivr0m10aT6000g40k2c05_1a.flx
+Teff=6000 log(g)=4.5 [M/H]=-1.0 [a/Fe]=0.4     database/Castellivr0m10aT6000g45k2c05_1a.flx
+Teff=6000 log(g)=4.0 [M/H]=-2.0 [a/Fe]=0.4     database/Castellivr0m20aT6000g40k2c05_1a.flx
+Teff=6000 log(g)=4.5 [M/H]=-2.0 [a/Fe]=0.4     database/Castellivr0m20aT6000g45k2c05_1a.flx
+Teff=6000 log(g)=4.0 [M/H]=-2.5 [a/Fe]=0.4     database/Castellivr0m25aT6000g40k1c05_1a.flx
+Teff=6000 log(g)=4.5 [M/H]=-2.5 [a/Fe]=0.4     database/Castellivr0m25aT6000g45k1c05_1a.flx
+Teff=6000 log(g)=4.0 [M/H]=-3.5 [a/Fe]=0.4     database/Castellivr0m35aT6000g40k1c05_1a.flx
+Teff=6000 log(g)=4.5 [M/H]=-3.5 [a/Fe]=0.4     database/Castellivr0m35aT6000g45k1c05_1a.flx
+Teff=6500 log(g)=4.0 [M/H]=-1.0 [a/Fe]=0.4     database/Castellivr0m10aT6500g40k2c05_1a.flx
+Teff=6500 log(g)=4.5 [M/H]=-1.0 [a/Fe]=0.4     database/Castellivr0m10aT6500g45k2c05_1a.flx
+Teff=6500 log(g)=4.0 [M/H]=-2.0 [a/Fe]=0.4     database/Castellivr0m20aT6500g40k2c05_1a.flx
+Teff=6500 log(g)=4.5 [M/H]=-2.0 [a/Fe]=0.4     database/Castellivr0m20aT6500g45k2c05_1a.flx
+Teff=6500 log(g)=4.0 [M/H]=-2.5 [a/Fe]=0.4     database/Castellivr0m25aT6500g40k1c05_1a.flx
+Teff=6500 log(g)=4.5 [M/H]=-2.5 [a/Fe]=0.4     database/Castellivr0m25aT6500g45k1c05_1a.flx
+Teff=6500 log(g)=4.0 [M/H]=-3.5 [a/Fe]=0.4     database/Castellivr0m35aT6500g40k1c05_1a.flx
+Teff=6500 log(g)=4.5 [M/H]=-3.5 [a/Fe]=0.4     database/Castellivr0m35aT6500g45k1c05_1a.flx
+#  vturb=2.0 km/s, l/H=1.25, vsini=0 km/s, Res=1A
+Teff=4250 log(g)=0.5 [M/H]=-3.5 [a/Fe]=0.4      database/Castellivr0m35aT4250g05k2_1a.flx
+Teff=4500 log(g)=0.5 [M/H]=-3.5 [a/Fe]=0.4      database/Castellivr0m35aT4500g05k2_1a.flx
+Teff=4500 log(g)=1.0 [M/H]=-3.5 [a/Fe]=0.4      database/Castellivr0m35aT4500g10k2_1a.flx
+Teff=4500 log(g)=1.5 [M/H]=-3.5 [a/Fe]=0.4      database/Castellivr0m35aT4500g15k2_1a.flx
+
+
+ 

@@ -1,5 +1,4 @@
-# Composite quasar spectrum from HST FOS observations 
-# Zheng et al. 1997 (ApJ 475, 469)
-# redshifted at z=2
+# Composite quasar spectrum 
+#  Stevans+14, Harris+15, Vanden Berk+01, Glikman+06
 #=========================================================================
-Composite at z=2          database/Zheng+97.txt
+Composite at z=0          database/QSO_composite_cut.dat

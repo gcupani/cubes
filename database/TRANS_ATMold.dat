@@ -1,0 +1,22 @@
+l(A) TRANS_ATM X=1 according to ESO (see https://www.eso.org/observing/etc/doc/elt/etc_spec_model.pdf) a 300 e 3400 presi da articolo Astrophys Space science (Paranal)
+3000.  0.04
+3100.  0.25
+3200.  0.41
+3300.  0.52
+3350.  0.56
+3400.  0.58
+3500.  0.61
+3600.  0.63
+3700.  0.66
+3800.  0.69
+4000.  0.73
+4200.  0.77
+4400.  0.83
+5500.  0.90
+7000.  0.98
+9000.  0.99
+10000. 1.0
+12500. 1.0
+16500. 1.0
+21600. 1.0
+26000. 1.0
