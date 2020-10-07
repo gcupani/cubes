@@ -560,8 +560,8 @@ class CCD(object):
 
         
     def extr_sum(self, y, dy, dy_targ, **kwargs):
-        sel = np.s_[self.sl_hlength-self.psf_xlength
-                    :self.sl_hlength+self.psf_xlength]
+        #print(self.psf_xlength, self.psf_xlength//2)
+        sel = np.s_[self.sl_hlength-self.psf_xlength//2:self.sl_hlength+self.psf_xlength//2]
         ysel = y[sel]
         dysel = dy[sel]
         dysel_targ = dy_targ[sel]
@@ -723,6 +723,12 @@ class Photons(object):
         self.flux_u = self.data_u['col2']
         self.flux_u = self.flux_u/np.sum(self.flux_u)*self.dwave_u
 
+        self.data_v = ascii.read('../database/phot_V.dat')
+        self.wave_v = self.data_v['col1'] * au.nm
+        self.dwave_v = self.wave_v[1]-self.wave_v[0]
+        self.flux_v = self.data_v['col2']
+        self.flux_v = self.flux_v/np.sum(self.flux_v)*self.dwave_v
+        
         f = self.flux_ref * self.area * texp  # Flux density @ 555.6 nm, V = 0
         self.targ = f * pow(10, -0.4*self.targ_mag)
         self.bckg = f * pow(10, -0.4*self.bckg_mag) / au.arcsec**2
@@ -961,81 +967,112 @@ class Spec(object):
         self.wmax = wmax
         self.wmean = 0.5*(wmin+wmax)
         self.wave = np.arange(wmin.value, wmax.value, dw.value)*wmin.unit
-
+        self.wave_extend = np.arange(300, 2200, dw.value)*wmin.unit  # Needed to compute background up to V band
+        
         try:
-            flux_bckg = self.skycalc()
+            flux_bckg_extend = self.skycalc(self.wave_extend)
+            flux_bckg = self.skycalc(self.wave)
             skycalc = True
         except:
             skycalc = False
-                
         # Extrapolate extinction
         spl = cspline(self.phot.atmo_wave, self.phot.atmo_ex)(self.wave)
         self.atmo_ex = pow(10, -0.4*spl*airmass)
 
-        flux_targ = getattr(self, templ)()
+        spl = cspline(self.phot.atmo_wave, self.phot.atmo_ex)(self.wave_extend)
+        atmo_ex_extend = pow(10, -0.4*spl*airmass)        
+        
+        flux_targ_extend = getattr(self, templ)(self.wave_extend)
+        flux_targ = getattr(self, templ)(self.wave)
   
-        mag_u = self.create(flux_targ, 'targ')
-        print("Input spectra created; target magnitude in the U band: %3.2f." % mag_u)
+        mag_u, mag_v = self.create(flux_targ_extend, 'targ', atmo_ex=atmo_ex_extend)
+        self.create(flux_targ, 'targ')
+        print("Input spectra created.")
+        print("Target magnitude: mag_U: %3.2f; mag_V: %3.2f." % (mag_u, mag_v))
+
+
 
         if skycalc:
+            mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, wmin=300*wmin.unit, wmax=2200*wmax.unit)
             self.create(flux_bckg, 'bckg', norm_flux=False)
             print("Sky spectrum imported from SkyCalc_input_NEW_Out.fits.")
+            print("Background magnitude (per arcsec^2): mag_U: %3.2f, mag_V: %3.2f." % (mag_u, mag_v))
             
         else:
             self.create(np.ones(self.wave.shape), 'bckg')
             print("Flat sky model created.")
 
+
         
-    def create(self, flux, obj='targ', norm_flux=True):
+    def create(self, flux, obj='targ', norm_flux=True, atmo_ex=None, wmin=None, wmax=None):
         if norm_flux:
             raw = flux * getattr(self.phot, obj)
         else:
             raw = flux * au.ph/au.nm/au.arcsec**2
-        
-        ext = raw*self.atmo_ex
-        tot = np.sum(ext)/len(ext) * (self.wmax-self.wmin)
+
+        if atmo_ex is None:
+            atmo_ex = self.atmo_ex
+        if wmin == None:
+            wmin = self.wmin
+        if wmax == None:
+            wmax = self.wmax
+        ext = raw*atmo_ex
+        tot = np.sum(ext)/len(ext) * (wmax-wmin)
         setattr(self, obj+'_raw', raw)
         setattr(self, obj+'_ext', ext)
         setattr(self, obj+'_tot', tot)
-        
+        #print(len(getattr(self, obj+'_raw')), len(self.wave_extend), len(atmo_ex))
         u = np.where(np.logical_and(self.wave > np.min(self.phot.wave_u), self.wave < np.max(self.phot.wave_u)))
         waveu = self.wave[u]
         dwaveu = np.median(self.wave[1:]-self.wave[:-1])
-        fluxu = self.targ_raw[u]
+        fluxu = getattr(self, obj+'_raw')[u]
         spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveu) 
     
         flux_norm = np.sum(fluxu*spl_u)/np.sum(spl_u)
-        mag_u = -2.5*np.log10(flux_norm / (flux_ref_Vega['U'] * self.phot.area * texp))
-            
-        return mag_u
+        mag_u = -2.5*np.log10(flux_norm.value / (flux_ref_Vega['U'] * self.phot.area * texp).value)
+        try:
+            v = np.where(np.logical_and(self.wave_extend > np.min(self.phot.wave_v), 
+                                        self.wave_extend < np.max(self.phot.wave_v)))
+            wavev = self.wave_extend[v]
+            dwavev = np.median(self.wave_extend[1:]-self.wave_extend[:-1])
+            fluxv = getattr(self, obj+'_raw')[v]
+            spl_v = cspline(self.phot.wave_v, self.phot.flux_v)(wavev) 
 
-    def custom(self):
+            flux_norm = np.sum(fluxv*spl_v)/np.sum(spl_v)
+            mag_v = -2.5*np.log10(flux_norm.value / (flux_ref_Vega['V'] * self.phot.area * texp).value)
+        except:
+            mag_v = None
+    
+
+        
+        return mag_u, mag_v
+
+    def custom(self, wave):
         name = self.file    
         try:
             data = Table(ascii.read(name, names=['col1', 'col2', 'col3', 'col4']))
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
-            
         except:
             data = Table(ascii.read(name, names=['col1', 'col2'], format='no_header'), dtype=(float, float))
             wavef = data['col1']*0.1 * au.nm
             fluxf = data['col2']
         if zem != None:
             wavef = wavef*(1+zem)
-
         if igm_abs in ['simple', 'inoue'] and zem != None:            
             fluxf = getattr(self, igm_abs+'_abs')(wavef, fluxf)
                         
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
-        dwaveb = np.median(wavef[1:]-wavef[:-1])
+        #dwaveb = np.median(wavef[1:]-wavef[:-1])
+        dwaveb = np.append(waveb[1]-waveb[0], waveb[1:]-waveb[:-1])
         fluxb = fluxf[band]
         spl_band = cspline(self.phot.wave_band, self.phot.flux_band)(waveb) 
 
         self.wavef = wavef
         self.fluxf = fluxf
 
-        spl = cspline(wavef, fluxf)(self.wave.value)
+        spl = cspline(wavef, fluxf)(wave.value)
         flux = spl/np.sum((spl_band*fluxb*dwaveb).value)
 
         return flux #* self.atmo_ex
@@ -1296,7 +1333,7 @@ class Spec(object):
         return flux / corr
 
 
-    def skycalc(self):
+    def skycalc(self, wave):
         name = 'SkyCalc_input_NEW_Out.fits'   
         data = Table.read(name)
         wavef = data['lam'] * au.nm
@@ -1304,7 +1341,7 @@ class Spec(object):
         atmo_trans = data['trans']
         self.phot.atmo_wave = wavef
         self.phot.atmo_ex = (1-atmo_trans)
-        spl = cspline(wavef, fluxf)(self.wave.value)
+        spl = cspline(wavef, fluxf)(wave.value)
         flux = spl #* au.photon/au.nm
         return flux
 
