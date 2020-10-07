@@ -1051,16 +1051,17 @@ class Spec(object):
         name = self.file    
         try:
             data = Table(ascii.read(name, names=['col1', 'col2', 'col3', 'col4']))
-            wavef = data['col1']*0.1 * au.nm
-            fluxf = data['col2']
         except:
             data = Table(ascii.read(name, names=['col1', 'col2'], format='no_header'), dtype=(float, float))
-            wavef = data['col1']*0.1 * au.nm
-            fluxf = data['col2']
+        wavef = data['col1']*au.nm
+        if np.median(wavef.value) > 1e3: wavef = wavef * 0.1
+        fluxf = data['col2']
         if zem != None:
             wavef = wavef*(1+zem)
         if igm_abs in ['simple', 'inoue'] and zem != None:            
             fluxf = getattr(self, igm_abs+'_abs')(wavef, fluxf)
+        #print(np.min(data['col1']), np.median(data['col1']), np.max(data['col1']))
+
                         
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
