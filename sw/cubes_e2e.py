@@ -705,6 +705,28 @@ class Photons(object):
         self.texp = texp
         self.wave_ref = globals()['wave_ref_'+mag_syst][mag_band]
         self.flux_ref = globals()['flux_ref_'+mag_syst][mag_band]
+        self.mag_ref = globals()['mag_ref_'+mag_syst][mag_band]
+        
+        self.ref1877 = ascii.read('../database/ABrefSP1877.dat')
+        wave_ref1877 = self.ref1877['col1']*0.1 * au.nm
+        flux_ref1877 = wave_ref1877 \
+                       * self.ref1877['col2']*1e-17*au.erg/au.cm**2/au.s/au.Angstrom / (ac.c*ac.h) * au.ph
+           
+        #print(wave_ref1877[700].to(au.m))
+        #print(self.ref1877['col2'][700]*1e-17*au.erg/au.cm**2/au.s/au.Angstrom * pow(10, 0.4*self.mag_ref))
+        #print(ac.c.to(au.m/au.s))
+        #print(ac.h.to(au.erg*au.s))
+        #print(flux_ref1877[700].to(au.ph/au.cm**2/au.s/au.Angstrom) * pow(10, 0.4*self.mag_ref))
+        self.wave_ref0 = wave_ref1877
+        self.flux_ref0 = flux_ref1877.to(au.ph/au.cm**2/au.s/au.nm) * pow(10, 0.4*self.mag_ref)
+        #print(np.mean(self.flux_ref0))
+        #print(self.flux_ref)
+
+        
+        #plt.scatter(globals()['wave_ref_'+mag_syst][, globals()['flux_ref_'+mag_syst])
+        #plt.plot(self.wave_ref0, self.flux_ref0 * self.area * texp)
+        #plt.show()
+        
         
         try:
             data_band = ascii.read('../database/phot_%s.dat' % mag_band)
@@ -716,12 +738,19 @@ class Photons(object):
             self.flux_band = self.flux_band/np.sum(self.flux_band)*self.dwave_band
         except:
             print("Band not found.")
-            
+        
+        """
         self.data_u = ascii.read('../database/phot_U.dat')
         self.wave_u = self.data_u['col1'] * au.nm
         self.dwave_u = self.wave_u[1]-self.wave_u[0]
         self.flux_u = self.data_u['col2']
         self.flux_u = self.flux_u/np.sum(self.flux_u)*self.dwave_u
+
+        self.data_b = ascii.read('../database/phot_B.dat')
+        self.wave_b = self.data_b['col1'] * au.nm
+        self.dwave_b = self.wave_b[1]-self.wave_b[0]
+        self.flux_b = self.data_b['col2']
+        self.flux_b = self.flux_b/np.sum(self.flux_b)*self.dwave_b
 
         self.data_v = ascii.read('../database/phot_V.dat')
         self.wave_v = self.data_v['col1'] * au.nm
@@ -729,10 +758,35 @@ class Photons(object):
         self.flux_v = self.data_v['col2']
         self.flux_v = self.flux_v/np.sum(self.flux_v)*self.dwave_v
         
-        f = self.flux_ref * self.area * texp  # Flux density @ 555.6 nm, V = 0
+        self.data_r = ascii.read('../database/phot_R.dat')
+        self.wave_r = self.data_b['col1'] * au.nm
+        self.dwave_r = self.wave_b[1]-self.wave_b[0]
+        self.flux_r = self.data_b['col2']
+        self.flux_r = self.flux_b/np.sum(self.flux_b)*self.dwave_b
+        """
+        for b in ['U','B','V','R','I','J','H','K']:
+            setattr(self, 'data_'+b, ascii.read('../database/phot_'+b+'.dat'))
+            setattr(self, 'wave_'+b, getattr(self, 'data_'+b)['col1'] * au.nm)
+            setattr(self, 'dwave_'+b, getattr(self, 'wave_'+b)[1] - getattr(self, 'wave_'+b)[0])
+            setattr(self, 'flux_'+b, getattr(self, 'data_'+b)['col2'])
+            setattr(self, 'flux_'+b, getattr(self, 'flux_'+b)/np.sum(getattr(self, 'flux_'+b)*getattr(self, 'dwave_'+b)))
+
+        b = np.where(np.logical_and(self.wave_ref0 > np.min(self.wave_band), self.wave_ref0 < np.max(self.wave_band)))
+        waveb = self.wave_ref0[b]
+        fluxb = self.flux_ref0[b]
+        spl_b = cspline(self.wave_band, self.flux_band)(waveb) 
+
+        self.flux_ref = np.sum(fluxb*spl_b)/np.sum(spl_b)
+        
+            
+        f = self.flux_ref * self.area * self.texp 
+        
+            
         self.targ = f * pow(10, -0.4*self.targ_mag)
         self.bckg = f * pow(10, -0.4*self.bckg_mag) / au.arcsec**2
 
+        #print(self.mag_ref, self.flux_ref, f, self.targ)
+        
         self.atmo()
         print("Photons collected.")
 
@@ -985,31 +1039,75 @@ class Spec(object):
         flux_targ_extend = getattr(self, templ)(self.wave_extend)
         flux_targ = getattr(self, templ)(self.wave)
   
-        mag_u, mag_v = self.create(flux_targ_extend, 'targ', atmo_ex=atmo_ex_extend)
+        #mag_u, mag_v = self.create(flux_targ_extend, 'targ', atmo_ex=atmo_ex_extend)
         self.create(flux_targ, 'targ')
         print("Input spectra created.")
-        print("Target magnitude: mag_U: %3.2f; mag_V: %3.2f." % (mag_u, mag_v))
+        
+        mag_U = self.compute_mag(flux_targ_extend, 'targ', 'U')
+        mag_V = self.compute_mag(flux_targ_extend, 'targ', 'V')
+        print("Target magnitude: U_%s: %3.3f; V_%s: %3.3f." % (mag_syst, mag_U, mag_syst, mag_V))
 
 
 
         if skycalc:
-            mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, wmin=300*wmin.unit, wmax=2200*wmax.unit)
+            #mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, 
+            #                           wmin=300*wmin.unit, wmax=2200*wmax.unit)
             self.create(flux_bckg, 'bckg', norm_flux=False)
             print("Sky spectrum imported from SkyCalc_input_NEW_Out.fits.")
-            print("Background magnitude (per arcsec^2): mag_U: %3.2f, mag_V: %3.2f." % (mag_u, mag_v))
+            
+            mag_U = self.compute_mag(flux_bckg_extend, 'bckg', 'U', norm_flux=False)
+            mag_V = self.compute_mag(flux_bckg_extend, 'bckg', 'V', norm_flux=False)            
+            print("Background magnitude (per arcsec^2): U_%s: %3.3f; V_%s: %3.3f." % (mag_syst, mag_U, mag_syst, mag_V))
             
         else:
             self.create(np.ones(self.wave.shape), 'bckg')
             print("Flat sky model created.")
 
 
+    def compute_mag(self, flux, obj, band, norm_flux=True):    
         
-    def create(self, flux, obj='targ', norm_flux=True, atmo_ex=None, wmin=None, wmax=None):
         if norm_flux:
             raw = flux * getattr(self.phot, obj)
         else:
             raw = flux * au.ph/au.nm/au.arcsec**2
 
+
+        wave_band = getattr(self.phot, 'wave_'+band)
+        flux_band = getattr(self.phot, 'flux_'+band)
+
+        ref0_extend = cspline(self.phot.wave_ref0, self.phot.flux_ref0)(self.wave_extend) * au.ph/au.nm
+        mag_ref_syst = globals()['mag_ref_'+mag_syst]
+        mag_ref_diff = {b: mag_ref_syst[b]-mag_ref_AB[b] for b in mag_ref_syst}
+        ref0_resc = ref0_extend * pow(10, 0.4*(mag_ref_diff[band]-mag_ref_diff[mag_band]))
+        #print(ref0_extend, ref0_resc)
+        
+        b = np.where(np.logical_and(self.wave_extend > np.min(wave_band), self.wave_extend < np.max(wave_band)))
+        waveb = self.wave_extend[b]
+        fluxb = raw[b]
+        spl_band = cspline(wave_band, flux_band)(waveb) 
+        ref0_band = np.sum(ref0_resc[b]*spl_band)/np.sum(spl_band)
+        flux_norm = np.sum(fluxb*spl_band)/np.sum(spl_band)
+        #plt.plot(self.phot.wave_ref0, self.phot.flux_ref0)
+        #print(flux_norm, self.phot.flux_ref, ref0_band)
+        return -2.5*np.log10(flux_norm.value / (np.median(ref0_band) * self.phot.area * texp).value)
+           
+        
+    def create(self, flux, obj='targ', norm_flux=True, atmo_ex=None, wmin=None, wmax=None):
+
+        #spl_ref0 = cspline(self.phot.wave_ref0, self.phot.flux_ref0)(self.wave) * au.ph/au.nm
+        #spl_ref0_extend = cspline(self.phot.wave_ref0, self.phot.flux_ref0)(self.wave_extend) * au.ph/au.nm
+
+
+        if norm_flux:
+            raw = flux * getattr(self.phot, obj)
+        else:
+            raw = flux * au.ph/au.nm/au.arcsec**2
+
+        #plt.plot(wave[0:100000], raw[0:100000])
+        #plt.plot(wave[0:100000], flux[0:100000]*1e13)
+        #plt.plot(self.wavef, self.fluxf*1e12)
+        #plt.plot(wave[0:100000], spl_ref0[0:100000] * self.phot.area * texp)
+        #plt.show()
         if atmo_ex is None:
             atmo_ex = self.atmo_ex
         if wmin == None:
@@ -1021,32 +1119,8 @@ class Spec(object):
         setattr(self, obj+'_raw', raw)
         setattr(self, obj+'_ext', ext)
         setattr(self, obj+'_tot', tot)
-        #print(len(getattr(self, obj+'_raw')), len(self.wave_extend), len(atmo_ex))
-        u = np.where(np.logical_and(self.wave > np.min(self.phot.wave_u), self.wave < np.max(self.phot.wave_u)))
-        waveu = self.wave[u]
-        dwaveu = np.median(self.wave[1:]-self.wave[:-1])
-        fluxu = getattr(self, obj+'_raw')[u]
-        spl_u = cspline(self.phot.wave_u, self.phot.flux_u)(waveu) 
+  
     
-        flux_norm = np.sum(fluxu*spl_u)/np.sum(spl_u)
-        mag_u = -2.5*np.log10(flux_norm.value / (flux_ref_Vega['U'] * self.phot.area * texp).value)
-        try:
-            v = np.where(np.logical_and(self.wave_extend > np.min(self.phot.wave_v), 
-                                        self.wave_extend < np.max(self.phot.wave_v)))
-            wavev = self.wave_extend[v]
-            dwavev = np.median(self.wave_extend[1:]-self.wave_extend[:-1])
-            fluxv = getattr(self, obj+'_raw')[v]
-            spl_v = cspline(self.phot.wave_v, self.phot.flux_v)(wavev) 
-
-            flux_norm = np.sum(fluxv*spl_v)/np.sum(spl_v)
-            mag_v = -2.5*np.log10(flux_norm.value / (flux_ref_Vega['V'] * self.phot.area * texp).value)
-        except:
-            mag_v = None
-    
-
-        
-        return mag_u, mag_v
-
     def custom(self, wave):
         name = self.file    
         try:
@@ -1055,7 +1129,7 @@ class Spec(object):
             data = Table(ascii.read(name, names=['col1', 'col2'], format='no_header'), dtype=(float, float))
         wavef = data['col1']*au.nm
         if np.median(wavef.value) > 1e3: wavef = wavef * 0.1
-        fluxf = data['col2']
+        fluxf = data['col1']*data['col2'] * au.ph/au.nm
         if zem != None:
             wavef = wavef*(1+zem)
         if igm_abs in ['simple', 'inoue'] and zem != None:            
@@ -1075,7 +1149,8 @@ class Spec(object):
 
         spl = cspline(wavef, fluxf)(wave.value)
         flux = spl/np.sum((spl_band*fluxb*dwaveb).value)
-
+    
+        
         return flux #* self.atmo_ex
 
     
@@ -1097,6 +1172,7 @@ class Spec(object):
         self.ax.set_title("Spectrum")
         self.ax.plot(self.wave, self.targ_raw, label='Target raw')
         self.ax.plot(self.wave, self.targ_ext, label='Target extincted', linestyle='--', c='C0')
+        #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
         if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
         
         self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)

@@ -21,8 +21,11 @@ wave_ref_Vega = {'U': 360*au.nm,
                  'J': 1220*au.nm,
                  'H': 1630*au.nm,
                  'K': 2190*au.nm}
-                 
-                 
+wave_ref_AB = wave_ref_Vega
+
+wave_ref_AB2 = wave_ref_Vega
+wave_ref_Vega2 = wave_ref_Vega
+
 flux_ref_AB = {'u': 15393*au.photon/au.cm**2/au.s/au.nm, 
                'g': 11346*au.photon/au.cm**2/au.s/au.nm, 
                'r': 8754*au.photon/au.cm**2/au.s/au.nm, 
@@ -36,7 +39,25 @@ flux_ref_Vega = {'U': 7561*au.photon/au.cm**2/au.s/au.nm,
                  'J': 1931*au.photon/au.cm**2/au.s/au.nm,
                  'H': 933*au.photon/au.cm**2/au.s/au.nm,
                  'K': 436*au.photon/au.cm**2/au.s/au.nm}
-    
+flux_ref_AB = {'U': 23174*au.photon/au.cm**2/au.s/au.nm,
+                'B': 20111*au.photon/au.cm**2/au.s/au.nm,
+                'V': 9955*au.photon/au.cm**2/au.s/au.nm}
+
+
+flux_ref_AB2 = {'U': 23174*au.photon/au.cm**2/au.s/au.nm,
+                'B': 20111*au.photon/au.cm**2/au.s/au.nm,
+                'V': 9955*au.photon/au.cm**2/au.s/au.nm}
+
+
+flux_ref_Vega2 = {'U': 11403*au.photon/au.cm**2/au.s/au.nm,
+                  'B': 22459*au.photon/au.cm**2/au.s/au.nm,
+                  'V': 9955*au.photon/au.cm**2/au.s/au.nm}
+
+
+mag_ref_AB = {'U': 18.77, 'B': 18.77, 'V': 18.77}
+mag_ref_Vega = {'U': 18.00, 'B': 18.89, 'V': 18.77}
+
+
 wave_U = 360 * au.nm  # Effective wavelength, U band
 wave_u = 356 * au.nm  # Effective wavelength, u band
 flux_U = 7561 * au.photon / au.cm**2 / au.s / au.nm  # Flux density @ 360.0 nm, mag_U = 0 (Vega)
