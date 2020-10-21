@@ -1046,12 +1046,31 @@ class Spec(object):
         self.wave = np.arange(wmin.value, wmax.value, dw.value)*wmin.unit
         self.wave_extend = np.arange(300, 2200, dw.value)*wmin.unit  # Needed to compute background up to V band
         
-        try:
-            flux_bckg_extend = self.skycalc(self.wave_extend)
-            flux_bckg = self.skycalc(self.wave)
-            skycalc = True
-        except:
+        if airmass is not None and pwv is not None and moond is not None:
+            try:
+                import SkyCalc_Call as sc
+                sc.run(airmass, pwv, moond) # Comment this to skip call to SkyCalc
+                flux_bckg_extend = self.skycalc(self.wave_extend)
+                flux_bckg = self.skycalc(self.wave)
+                skycalc = True
+            except:
+                skycalc = False
+        else:
             skycalc = False
+        if not skycalc:
+            rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
+            tra = Table(ascii.read('../database/Sky_tra_MFLI_0_Airm_1.16_PWV_30.dat'))
+            flux_bckg_extend = np.interp(self.wave_extend, rad['col1'], rad['col2']) 
+            flux_bckg = np.interp(self.wave, rad['col1'], rad['col2']) 
+            self.phot.atmo_ex = 1-np.interp(self.phot.atmo_wave, tra['col1'], tra['col2'])
+
+        #rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
+        #plt.plot(rad['col1'], rad['col2']*1e2)
+        #plt.plot(self.wave, flux_bckg)
+        #plt.show()
+                 
+            
+            
         # Extrapolate extinction
         spl = cspline(self.phot.atmo_wave, self.phot.atmo_ex)(self.wave)
         #self.atmo_ex = pow(10, -0.4*spl*airmass)
@@ -1074,19 +1093,20 @@ class Spec(object):
 
 
 
+        self.create(flux_bckg, 'bckg', norm_flux=False)
         if skycalc:
             #mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, 
             #                           wmin=300*wmin.unit, wmax=2200*wmax.unit)
-            self.create(flux_bckg, 'bckg', norm_flux=False)
             print("Sky spectrum imported from SkyCalc_input_NEW_Out.fits.")
-            
-            mag_U = self.compute_mag(flux_bckg_extend, 'bckg', 'U', norm_flux=False)
-            mag_V = self.compute_mag(flux_bckg_extend, 'bckg', 'V', norm_flux=False)            
-            print("Background magnitude (per arcsec^2): U_%s: %3.3f; V_%s: %3.3f." % (mag_syst, mag_U, mag_syst, mag_V))
-            
+                        
         else:
-            self.create(np.ones(self.wave.shape), 'bckg')
-            print("Flat sky model created.")
+            self.create(flux_bckg, 'bckg', norm_flux=False)
+            print("Sky spectrum imported from ../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat.")
+            
+        mag_U = self.compute_mag(flux_bckg_extend, 'bckg', 'U', norm_flux=False)
+        mag_V = self.compute_mag(flux_bckg_extend, 'bckg', 'V', norm_flux=False)            
+        print("Background magnitude (per arcsec^2): U_%s: %3.3f; V_%s: %3.3f." % (mag_syst, mag_U, mag_syst, mag_V))
+
 
 
     def compute_mag(self, flux, obj, band, norm_flux=True):    
@@ -1459,6 +1479,7 @@ class Spec(object):
         
         spl = cspline(wavef, fluxf)(wave.value)
         flux = spl #* au.photon/au.nm
+        #os.remove(name)
         return flux
 
     
