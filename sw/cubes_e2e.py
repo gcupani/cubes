@@ -186,7 +186,7 @@ class CCD(object):
             self.arm_range = np.logical_and(self.spec.wave.value>m.value,
                                             self.spec.wave.value<M.value)
             self.arm_wave = self.spec.wave[self.arm_range].value
-            self.arm_targ = self.spec.targ_conv[self.arm_range].value
+            self.arm_targ = self.spec.targ_conv[self.arm_range].value*(1-self.psf.losses)
             xlength = int(slice_length/self.spat_scale/self.pix_xsize)
             self.sl_hlength = xlength // 2
             self.psf_xlength = int(np.ceil(self.psf.seeing/self.spat_scale
@@ -264,6 +264,7 @@ class CCD(object):
 
         
         # Since self.spec.targ/bckg_norm were normalized, we have to normalize targ/bckg again after csplining
+        #print(wmin, wmax)
         targ_arm = targ_red[np.logical_and(wave_red>wmin, wave_red<wmax)]
         bckg_arm = bckg_red[np.logical_and(wave_red>wmin, wave_red<wmax)]
         targ = targ/np.sum(targ)*np.sum(targ_arm)/targ_sum
@@ -281,9 +282,12 @@ class CCD(object):
             tot_eff = self.tot_eff(wave, wmin_d, wmax_d)
             sl_targ = sl_targ * tot_eff
             sl_bckg = sl_bckg * tot_eff
-
+        #plt.plot(wave,sl_targ)
+    
         sl_targ_prof = np.multiply.outer(sl_targ, sl_trace_targ)
         sl_bckg_prof = np.multiply.outer(sl_bckg, sl_trace_bckg)
+        #plt.plot(wave,sl_targ_prof)
+    
         self.targ_sum += np.sum(sl_targ_prof)
         self.bckg_sum += np.sum(sl_bckg_prof)
         self.sl_targ_prof = np.append(self.sl_targ_prof, sl_targ_prof)
@@ -315,15 +319,16 @@ class CCD(object):
             self.mod_init.append(
                 Gaussian1D(amplitude=sl_msignal, mean=c, stddev=psf_xlength))
             self.sl_cen.append(c)
-            
+        #print(self.targ_sum)
+        #plt.show()   
 
-    def draw(self):
+    def draw(self, test_wave=380):
         fig_p, self.ax_p = plt.subplots(figsize=(10,7))
         self.ax_p.set_title("Photon balance (CCD)")
         sl_v = np.array([self.spec.targ_tot.value, np.sum(self.psf.targ_slice.value), 
                          np.sum(self.psf.z_targ.value)-np.sum(self.psf.targ_slice.value),
                          self.targ_sum.value, np.sum(self.psf.z_targ.value)-self.targ_sum.value])
-        sl_l = ["target: %2.3e %s"  % (sl_v[0], self.spec.targ_tot.unit), 
+        sl_l = ["target (extincted): %2.3e %s"  % (sl_v[0], self.spec.targ_tot.unit), 
                 "on slit: %2.3e %s"  % (sl_v[1], self.psf.z_targ.unit), 
                 "off slit: %2.3e %s"  % (sl_v[2], self.psf.z_targ.unit),
                 "on CCD: %2.3e %s"  % (sl_v[3], self.targ_sum.unit), 
@@ -392,7 +397,7 @@ class CCD(object):
         for i in range(0,arm_n*slice_n,slice_n):  # Only one slice per arm is plotted, as they are the same efficiency-wise
             self.ax_e.plot(self.eff_wave[i], self.eff_fib[i], label='Fiber' if i==0 else '', color='C0', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_adc[i], label='ADC' if i==0 else '', color='C1', linestyle=':')
-            self.ax_e.plot(self.eff_wave[i], self.eff_opo[i], label='Other pre-optics' if i==0 else '', color='C2', 
+            self.ax_e.plot(self.eff_wave[i], self.eff_opo[i], label='Other pre-opt.' if i==0 else '', color='C2', 
                            linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_slc[i], label='Slicer' if i==0 else '', color='C3', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_dch[i], label='Dichroich' if i==0 else '', color='C4', linestyle=':')
@@ -405,9 +410,23 @@ class CCD(object):
             self.ax_e.plot(self.eff_wave[i], self.eff_tot[i], label='Total' if i==0 else '', color='C0')
 #            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*cspline(self.spec.wave, self.spec.atmo_ex)(self.eff_wave[i]),
             #print(self.eff_wave[i], self.spec.wave, self.spec.atmo_ex)
-            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]*np.interp(self.eff_wave[i], self.spec.wave.value, 
-                                                                       self.spec.atmo_ex),
-                           label='Total including extinction' if i==0 else '', color='C0', linestyle='--')
+            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]\
+                           *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex),
+                           label='Total+ext.' if i==0 else '', color='C0', linestyle='--')
+            self.ax_e.plot(self.eff_wave[i], self.eff_tot[i]\
+                           *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses),
+                           label='Total+ext.+slit' if i==0 else '', color='C0', linestyle=':')
+
+            test_eff_tot = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i])
+            test_eff_tot_ext = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i]\
+                               *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex))
+            test_eff_tot_ext_slit = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i]\
+                                    *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses))
+            
+            if test_wave > np.min(self.spec.arm_wave[i//slice_n]) and test_wave < np.max(self.spec.arm_wave[i//slice_n]):
+                self.ax_e.text(test_wave, test_eff_tot, '%2.4f' % test_eff_tot) 
+                self.ax_e.text(test_wave, test_eff_tot_ext, '%2.4f' % test_eff_tot_ext) 
+                self.ax_e.text(test_wave, test_eff_tot_ext_slit, '%2.4f' % test_eff_tot_ext_slit, va='top') 
             
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_e.set_ylabel('Fractional throughput')
@@ -560,8 +579,8 @@ class CCD(object):
 
         
     def extr_sum(self, y, dy, dy_targ, **kwargs):
-        #print(self.psf_xlength, self.psf_xlength//2)
-        sel = np.s_[self.sl_hlength-self.psf_xlength//2:self.sl_hlength+self.psf_xlength//2]
+        #print(self.psf_xlength, self.psf_xlength//2,(1.2*self.psf_xlength)//2)
+        sel = np.s_[self.sl_hlength-(int)(1.2*self.psf_xlength)//2:self.sl_hlength+(int)(1.2*self.psf_xlength)//2]
         ysel = y[sel]
         dysel = dy[sel]
         dysel_targ = dy_targ[sel]
@@ -687,9 +706,8 @@ class CCD(object):
         self.eff_ccd.append(ccd)
         self.eff_tel.append(tel)
         self.eff_tot.append(tot)
-
         return tot
-
+        #return np.ones(tot.shape)*dch_shape
     
     def wave_grid(self, wmin, wmax):
         return np.linspace(wmin, wmax, int(self.ysize.value))
@@ -926,8 +944,12 @@ class PSF(object):
         self.bckg_slice = self.flux_bckg_slice
         self.targ_slice = self.flux_slice-self.bckg_slice
         self.spec.targ_slice = self.targ_slice
-        self.losses = 1-(self.flux_targ_slice.value)/np.sum(self.z_targ.value)
+        #self.losses = 1-(self.flux_targ_slice.value)/np.sum(self.z_targ.value)
+        self.losses = 1-(self.targ_slice.value)/np.sum(self.z_targ.value)
+        #self.frac_slice = np.sum(self.targ_slice.value)/np.sum(self.z_targ.value)
 
+        #print(1-self.losses, self.frac_slice)
+        
         # Update spectrum with flux into slices and background
         if self.func == 'gaussian':#or 1==0:
             self.spec.targ_conv = gaussian_filter(
@@ -938,6 +960,7 @@ class PSF(object):
         else:
             self.spec.targ_conv = self.spec.targ_ext#*(1-self.losses)
             self.spec.bckg_conv = self.spec.bckg_ext
+        
         
             
     def draw(self):
@@ -1031,10 +1054,12 @@ class Spec(object):
             skycalc = False
         # Extrapolate extinction
         spl = cspline(self.phot.atmo_wave, self.phot.atmo_ex)(self.wave)
-        self.atmo_ex = pow(10, -0.4*spl*airmass)
+        #self.atmo_ex = pow(10, -0.4*spl*airmass)
+        self.atmo_ex = (1-spl)
 
         spl = cspline(self.phot.atmo_wave, self.phot.atmo_ex)(self.wave_extend)
-        atmo_ex_extend = pow(10, -0.4*spl*airmass)        
+        #atmo_ex_extend = pow(10, -0.4*spl*airmass)        
+        atmo_ex_extend = (1-spl)
         
         flux_targ_extend = getattr(self, templ)(self.wave_extend)
         flux_targ = getattr(self, templ)(self.wave)
@@ -1116,6 +1141,7 @@ class Spec(object):
             wmax = self.wmax
         ext = raw*atmo_ex
         tot = np.sum(ext)/len(ext) * (wmax-wmin)
+        #print(tot)
         setattr(self, obj+'_raw', raw)
         setattr(self, obj+'_ext', ext)
         setattr(self, obj+'_tot', tot)
@@ -1154,13 +1180,13 @@ class Spec(object):
         return flux #* self.atmo_ex
 
     
-    def draw_in(self, bckg=True, show=True):    
+    def draw_in(self, bckg=True, show=True, test_wave=380):    
 
         if bckg:
             fig_p, self.ax_p = plt.subplots(figsize=(10,7))
             self.ax_p.set_title("Photon balance (telescope)")
             sl_v = [self.targ_tot.value, self.bckg_tot.value]
-            sl_l = ["target: %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
+            sl_l = ["target (extincted): %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
                     "background: %2.3e %s" % (sl_v[1], self.bckg_tot.unit)]
             sl_c = ['C0', 'C1']
             #print(sl_v)
@@ -1175,6 +1201,14 @@ class Spec(object):
         #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
         if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
         
+        test_targ_raw = np.interp(test_wave, self.wave, self.targ_raw)
+        test_targ_ext = np.interp(test_wave, self.wave, self.targ_ext)
+        self.ax.text(test_wave, test_targ_raw, '%2.3e' % test_targ_raw) 
+        self.ax.text(test_wave, test_targ_ext, '%2.3e' % test_targ_ext) 
+        if bckg:
+            test_bckg_raw = np.interp(test_wave, self.wave, self.bckg_raw)
+            self.ax.text(test_wave, test_bckg_raw, '%2.3e' % test_bckg_raw) 
+
         self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)
         self.ax.set_ylabel('Flux density\n(%s)' % self.targ_raw.unit)
         self.ax.grid(linestyle=':')
@@ -1185,14 +1219,14 @@ class Spec(object):
 
 
         
-    def draw(self):
+    def draw(self, test_wave=380):
         fig_p, self.ax_p = plt.subplots(figsize=(7,7))
-        self.ax_p.set_title("Photon balance (CCD)")
+        self.ax_p.set_title("Photon balance (extraction)")
         sl_v = np.array([self.targ_tot.value, np.sum(self.targ_slice.value), 
                          np.sum(self.z_targ.value)-np.sum(self.targ_slice.value),
                          self.targ_sum.value, np.sum(self.z_targ.value)-self.targ_sum.value,
                          self.flux_final_tot.value, np.sum(self.z_targ.value)-self.flux_final_tot.value])
-        sl_l = ["target: %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
+        sl_l = ["target (extincted): %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
                 "on slit: %2.3e %s"  % (sl_v[1], self.z_targ.unit), 
                 "off slit: %2.3e %s"  % (sl_v[2], self.z_targ.unit),
                 "on CCD: %2.3e %s"  % (sl_v[3], self.targ_sum.unit), 
@@ -1216,12 +1250,16 @@ class Spec(object):
         p3[0][1].set_alpha(1/6)
         self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0],p3[0][0]], [sl_l[0]]+sl_l[1::2])
 
-        self.draw_in(bckg=False, show=False)
+        self.draw_in(bckg=False, show=False, test_wave=test_wave)
         self.ax.set_title("Spectrum")
         
         for a in range(arm_n):
             line1, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] \
                 * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]), c='C3')
+            if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
+                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] \
+                                          * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]))
+                self.ax.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
             if arm_n > 1:
                 line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0')
                 line3 = self.ax.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='C1')
@@ -1418,6 +1456,7 @@ class Spec(object):
         atmo_trans = data['trans']
         self.phot.atmo_wave = wavef
         self.phot.atmo_ex = (1-atmo_trans)
+        
         spl = cspline(wavef, fluxf)(wave.value)
         flux = spl #* au.photon/au.nm
         return flux
@@ -1472,9 +1511,9 @@ class Sim():
                 getattr(self, o+'_create')()
                 
     
-    def ccd(self):
+    def ccd(self, test_wave=380):
         self.ccd_create()
-        self.ccd_draw()
+        self.ccd_draw(test_wave=test_wave)
 
 
     def ccd_create(self):            
@@ -1483,9 +1522,9 @@ class Sim():
         self._ccd.add_arms(n=arm_n, wave_d=wave_d, wave_d_shift=wave_d_shift)
 
         
-    def ccd_draw(self):
+    def ccd_draw(self, test_wave=380):
         self.check(False, 'phot', 'spec', 'psf', 'ccd')
-        self._ccd.draw()
+        self._ccd.draw(test_wave=test_wave)
         plt.show()
 
 
@@ -1512,9 +1551,9 @@ class Sim():
         plt.show()
 
         
-    def spec_in(self):
+    def spec_in(self, test_wave=380):
         self.spec_create()
-        self._spec.draw_in()
+        self._spec.draw_in(test_wave=test_wave)
         
 
     def spec_create(self):
@@ -1522,10 +1561,10 @@ class Sim():
         self._spec = Spec(self._phot, file=spec_file, wmin=wmin, wmax=wmax, templ=spec_templ)
 
 
-    def spec_draw(self):
+    def spec_draw(self, test_wave=380):
         self.check(True, 'phot', 'spec', 'psf', 'ccd')
         self._ccd.extr_arms(n=arm_n, slice_n=slice_n)
-        self._spec.draw()
+        self._spec.draw(test_wave=test_wave)
 
         
     def spec_save(self, file):
