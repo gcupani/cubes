@@ -1060,14 +1060,21 @@ class Spec(object):
         if not skycalc:
             rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
             tra = Table(ascii.read('../database/Sky_tra_MFLI_0_Airm_1.16_PWV_30.dat'))
-            flux_bckg_extend = np.interp(self.wave_extend, rad['col1'], rad['col2']) 
-            flux_bckg = np.interp(self.wave, rad['col1'], rad['col2']) 
+            resc = rad['col2'] * self.phot.area * texp * 1e-7
+            flux_bckg_extend = np.interp(self.wave_extend, rad['col1'], resc) 
+            flux_bckg = np.interp(self.wave, rad['col1'], resc) 
             self.phot.atmo_ex = 1-np.interp(self.phot.atmo_wave, tra['col1'], tra['col2'])
 
-        #rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
-        #plt.plot(rad['col1'], rad['col2']*1e2)
-        #plt.plot(self.wave, flux_bckg)
-        #plt.show()
+        """
+        rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
+        tra = Table(ascii.read('../database/Sky_tra_MFLI_0_Airm_1.16_PWV_30.dat'))
+        plt.plot(rad['col1'], rad['col2'] * self.phot.area * texp * 1e-7)
+        plt.plot(self.wave, flux_bckg)
+        plt.show()
+        plt.plot(tra['col1'], 1-tra['col2'])
+        plt.plot(self.phot.atmo_wave, self.phot.atmo_ex)
+        plt.show()
+        """
                  
             
             
@@ -1097,11 +1104,11 @@ class Spec(object):
         if skycalc:
             #mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, 
             #                           wmin=300*wmin.unit, wmax=2200*wmax.unit)
-            print("Sky spectrum imported from SkyCalc_input_NEW_Out.fits.")
+            print("Sky spectrum and atmospheric extinction computed by SkyCalc.")
                         
         else:
             self.create(flux_bckg, 'bckg', norm_flux=False)
-            print("Sky spectrum imported from ../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat.")
+            print("Sky spectrum and atmospheric extinction imported from static model (airmass = 1.16, pwv = 30.0, moond = 0.0).")
             
         mag_U = self.compute_mag(flux_bckg_extend, 'bckg', 'U', norm_flux=False)
         mag_V = self.compute_mag(flux_bckg_extend, 'bckg', 'V', norm_flux=False)            

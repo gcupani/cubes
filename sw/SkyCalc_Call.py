@@ -126,9 +126,10 @@ def run(airmass, pwv, moond):
             # Atm-Transmission extraction
             Sky_tras_v[i]=T[i][4]
         
-        print("Sky spectrum created and saved in SkyCalc_input_NEW_Out.fits.")
+        #print("Sky spectrum created and saved in SkyCalc_input_NEW_Out.fits.")
     except:
-        print("Unable to run SkyCalc.")
+        pass
+        #print("Unable to run SkyCalc.")
     
 if __name__ == '__main__':
     run()
