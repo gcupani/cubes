@@ -3,7 +3,7 @@ import numpy as np
 import os
 import sys
 
-def run(airmass, pwv, moond):
+def run(airmass, pwv, moond, wmin, wmax):
     # INPUT PARAMS:
     # Airmass range [1-3]
     #airm = sim.airmass
@@ -90,9 +90,17 @@ def run(airmass, pwv, moond):
                     # Change the list back to string, by using 'join' method of strings.
                     line_new="".join(line_list) 
                     #print("Line {}: {}".format(cnt, line_new.strip()))
-                
-                if cnt !=1 and cnt !=8:
+
+                if cnt !=1 and cnt != 5 and cnt !=8:
                     line_new=line
+
+                
+                if cnt == 27 or cnt == 28:
+                    line_split = line.split(":  ")
+                    line_split[-1] = str(wmin.value) if cnt == 27 else str(wmax.value)
+                    line_new = ":  ".join(line_split)
+                
+                #print(cnt, line_new)
                 
                 fp2.write(line_new)
                 cnt = 1 + cnt

@@ -68,6 +68,8 @@ class CCD(object):
             self.disp_wave *= au.nm
             self.disp_sampl *= au.nm/au.pixel
             #print(self.disp_wave)
+            self.spec.disp_wave = self.disp_wave
+            self.spec.disp_sampl = self.disp_sampl
 
 
     def add_arms(self, n, wave_d, wave_d_shift):
@@ -153,6 +155,7 @@ class CCD(object):
         self.spec.M_d = []
         self.spec.arm_wave = []
         self.spec.arm_targ = []
+        self.spec.arm_bckg = []
         self.spec.tot_eff = self.tot_eff
         self.targ_sum = 0
         self.bckg_sum = 0
@@ -187,6 +190,9 @@ class CCD(object):
                                             self.spec.wave.value<M.value)
             self.arm_wave = self.spec.wave[self.arm_range].value
             self.arm_targ = self.spec.targ_conv[self.arm_range].value*(1-self.psf.losses)
+            self.arm_bckg = self.spec.bckg_conv[self.arm_range].value#*(1-self.psf.losses)
+            self.spec.slit_eff = 1-self.psf.losses
+
             xlength = int(slice_length/self.spat_scale/self.pix_xsize)
             self.sl_hlength = xlength // 2
             self.psf_xlength = int(np.ceil(self.psf.seeing/self.spat_scale
@@ -202,6 +208,8 @@ class CCD(object):
 
             self.spec.arm_wave.append(self.arm_wave)
             self.spec.arm_targ.append(self.arm_targ)
+            self.spec.arm_bckg.append(self.arm_bckg)
+
              
             spl_wave = self.disp_wave[i]
             spl_sampl = self.disp_sampl[i]
@@ -279,7 +287,7 @@ class CCD(object):
         
         # Efficiency
         if wmin_d is not None and wmax_d is not None:
-            tot_eff = self.tot_eff(wave, wmin_d, wmax_d)
+            tot_eff = self.tot_eff(wave, wmin_d, wmax_d)[0]
             sl_targ = sl_targ * tot_eff
             sl_bckg = sl_bckg * tot_eff
         #plt.plot(wave,sl_targ)
@@ -382,11 +390,36 @@ class CCD(object):
             self.ax_s[1].plot(self.spec.arm_wave[i], cspline(spl_wave, spl_sampl*ccd_ybin)(self.spec.arm_wave[i]), 
                               label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
 
+
+
             self.ax_s[1].get_xaxis().set_visible(False)
             self.ax_s[1].set_ylabel('Sampling (%s/%s)' % (au.nm, au.pixel))
             self.ax_s[2].plot(self.spec.arm_wave[i], self.spec.fwhm[i], label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
+            
+            """
+            if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
+                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] \
+                                          * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]))
+                self.ax.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
+            """
+
+
             self.ax_s[2].set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_s[2].set_ylabel('FWHM (%s)' % au.pixel)
+            
+            if test_wave > np.min(self.spec.arm_wave[i]) and test_wave < np.max(self.spec.arm_wave[i]):
+                test_resol = np.interp(test_wave, self.spec.arm_wave[i], self.spec.resol[i])
+                test_sampl = cspline(spl_wave, spl_sampl*ccd_ybin)(test_wave)
+                test_fwhm = np.interp(test_wave, self.spec.arm_wave[i], self.spec.fwhm[i])
+
+                self.ax_s[0].text(test_wave, test_resol, '%2.3e' % test_sampl)
+                self.ax_s[1].text(test_wave, test_sampl, '%2.3e' % test_sampl)
+                self.ax_s[2].text(test_wave, test_fwhm, '%2.3e' % test_fwhm)
+                
+                self.spec.d_lam = test_sampl * au.nm/au.pixel
+
+
+
         self.ax_s[2].axhline(2.0, linestyle=':')
         self.ax_s[2].text(np.min(self.spec.arm_wave[0]), 2.0, "Nyquist limit", ha='left', va='bottom')
         self.ax_s[2].legend()
@@ -430,7 +463,7 @@ class CCD(object):
             
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_e.set_ylabel('Fractional throughput')
-        self.ax_e.legend()
+        #self.ax_e.legend()
 
         
         
@@ -692,6 +725,7 @@ class CCD(object):
             ccd = np.interp(wave, eff_wave.value, eff_ccd)
             tel = np.interp(wave, eff_wave.value, eff_tel)
         tot = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd * tel
+        instr = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd
         
         self.eff_wave.append(wave)
         self.eff_fib.append(fib)
@@ -706,7 +740,8 @@ class CCD(object):
         self.eff_ccd.append(ccd)
         self.eff_tel.append(tel)
         self.eff_tot.append(tot)
-        return tot
+        
+        return tot, instr, tel
         #return np.ones(tot.shape)*dch_shape
     
     def wave_grid(self, wmin, wmax):
@@ -1049,7 +1084,7 @@ class Spec(object):
         if airmass is not None and pwv is not None and moond is not None:
             try:
                 import SkyCalc_Call as sc
-                sc.run(airmass, pwv, moond) # Comment this to skip call to SkyCalc
+                sc.run(airmass, pwv, moond, wmin, wmax) # Comment this to skip call to SkyCalc
                 flux_bckg_extend = self.skycalc(self.wave_extend)
                 flux_bckg = self.skycalc(self.wave)
                 skycalc = True
@@ -1100,14 +1135,14 @@ class Spec(object):
 
 
 
-        self.create(flux_bckg, 'bckg', norm_flux=False)
+        self.create(flux_bckg, 'bckg', norm_flux=False, ext_flux=False)
         if skycalc:
             #mag_u, mag_v = self.create(flux_bckg_extend, 'bckg', norm_flux=False, atmo_ex=atmo_ex_extend, 
             #                           wmin=300*wmin.unit, wmax=2200*wmax.unit)
             print("Sky spectrum and atmospheric extinction computed by SkyCalc.")
                         
         else:
-            self.create(flux_bckg, 'bckg', norm_flux=False)
+            self.create(flux_bckg, 'bckg', norm_flux=False, ext_flux=False)
             print("Sky spectrum and atmospheric extinction imported from static model (airmass = 1.16, pwv = 30.0, moond = 0.0).")
             
         mag_U = self.compute_mag(flux_bckg_extend, 'bckg', 'U', norm_flux=False)
@@ -1144,7 +1179,7 @@ class Spec(object):
         return -2.5*np.log10(flux_norm.value / (np.median(ref0_band) * self.phot.area * texp).value)
            
         
-    def create(self, flux, obj='targ', norm_flux=True, atmo_ex=None, wmin=None, wmax=None):
+    def create(self, flux, obj='targ', norm_flux=True, ext_flux=True, atmo_ex=None, wmin=None, wmax=None):
 
         #spl_ref0 = cspline(self.phot.wave_ref0, self.phot.flux_ref0)(self.wave) * au.ph/au.nm
         #spl_ref0_extend = cspline(self.phot.wave_ref0, self.phot.flux_ref0)(self.wave_extend) * au.ph/au.nm
@@ -1166,7 +1201,10 @@ class Spec(object):
             wmin = self.wmin
         if wmax == None:
             wmax = self.wmax
-        ext = raw*atmo_ex
+        if ext_flux:
+            ext = raw*atmo_ex
+        else:
+            ext = raw
         tot = np.sum(ext)/len(ext) * (wmax-wmin)
         #print(tot)
         setattr(self, obj+'_raw', raw)
@@ -1230,11 +1268,22 @@ class Spec(object):
         
         test_targ_raw = np.interp(test_wave, self.wave, self.targ_raw)
         test_targ_ext = np.interp(test_wave, self.wave, self.targ_ext)
+
+
         self.ax.text(test_wave, test_targ_raw, '%2.3e' % test_targ_raw) 
         self.ax.text(test_wave, test_targ_ext, '%2.3e' % test_targ_ext) 
+
+        self.obj_f0 = test_targ_raw * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
+        self.obj_f1 = test_targ_ext * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
+
+        self.atm_eff = test_targ_ext/test_targ_raw
+        
         if bckg:
             test_bckg_raw = np.interp(test_wave, self.wave, self.bckg_raw)
             self.ax.text(test_wave, test_bckg_raw, '%2.3e' % test_bckg_raw) 
+            self.sky_f01 = test_bckg_raw * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
+                           / (self.phot.area * texp) 
+
 
         self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)
         self.ax.set_ylabel('Flux density\n(%s)' % self.targ_raw.unit)
@@ -1247,12 +1296,14 @@ class Spec(object):
 
         
     def draw(self, test_wave=380):
+        self.test_wave = test_wave * au.nm
         fig_p, self.ax_p = plt.subplots(figsize=(7,7))
         self.ax_p.set_title("Photon balance (extraction)")
         sl_v = np.array([self.targ_tot.value, np.sum(self.targ_slice.value), 
                          np.sum(self.z_targ.value)-np.sum(self.targ_slice.value),
                          self.targ_sum.value, np.sum(self.z_targ.value)-self.targ_sum.value,
-                         self.flux_final_tot.value, np.sum(self.z_targ.value)-self.flux_final_tot.value])
+                         self.flux_final_tot.value, np.sum(self.z_targ.value)-
+                         self.flux_final_tot.value])
         sl_l = ["target (extincted): %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
                 "on slit: %2.3e %s"  % (sl_v[1], self.z_targ.unit), 
                 "off slit: %2.3e %s"  % (sl_v[2], self.z_targ.unit),
@@ -1281,39 +1332,92 @@ class Spec(object):
         self.ax.set_title("Spectrum")
         
         for a in range(arm_n):
-            line1, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] \
-                * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]), c='C3')
+            tot_eff, instr_eff, tel_eff = self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a])
+            line0, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='C0')
+            line1, = self.ax.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='C1')
             if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
-                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] \
-                                          * self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a]))
+                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] * tot_eff)
                 self.ax.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
-            if arm_n > 1:
-                line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0')
-                line3 = self.ax.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='C1')
-            else:
-                line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0')
-                line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='C1')
+                test_arm_bckg = np.interp(test_wave, self.arm_wave[a], self.arm_bckg[a] * tot_eff)
+                self.ax.text(test_wave, test_arm_bckg, '%2.3e' % test_arm_bckg)
+
                 
-        line1.set_label('On detector')            
+                self.instr_eff = np.interp(test_wave, self.arm_wave[a], instr_eff)
+                self.tel_eff = np.interp(test_wave, self.arm_wave[a], tel_eff)           
+                self.sky_eff = np.interp(test_wave, self.arm_wave[a], tot_eff)
+                self.obj_eff = self.atm_eff*self.slit_eff*self.sky_eff
+
+                self.obj_f2 = test_arm_targ * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
+                self.obj_f3 = test_arm_targ * 0.1*au.ph/au.Angstrom
+                self.obj_f4 = (self.obj_f3 * self.d_lam).to(au.ph/au.pixel)
+                
+                self.sky_f01 = self.sky_f01 * slice_n * slice_width * seeing * 1.2
+                self.sky_f2 = test_arm_bckg * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
+                              / (self.phot.area * texp) * slice_n * slice_width * seeing * 1.2
+                self.sky_f3 = test_arm_bckg * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
+                              * slice_n * slice_width * seeing * 1.2
+                self.sky_f4 = (self.sky_f3 * self.d_lam).to(au.ph/au.pixel)
+                
+                sel = np.where(np.logical_and(self.wave_extr[a,:]>test_wave-self.d_lam.value*5,
+                                              self.wave_extr[a,:]<test_wave+self.d_lam.value*5))
+                self.obj_f5 = np.mean(self.flux_extr[a,:][sel]) / au.pixel
+                self.sky_f5 = np.mean(self.err_bckg_extr[a,:][sel]**2) * au.ph/ au.pixel
+
+
+
+
+
+            if arm_n > 1:
+                line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0', alpha=0.1)
+                line3 = self.ax.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='gray', alpha=0.1)
+            else:
+                line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.1)
+                line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='gray', alpha=0.1)
+                
+        line0.set_label('On detector')            
+        line1.set_label('On detector (error)')            
         line2.set_label('Extracted')
         line3.set_label('Extracted (error)')
 
         self.ax.legend(loc=2, fontsize=8)
-
+        #self.ax.set_yscale('log')
+        
         fig_noise, self.ax_noise = plt.subplots(figsize=(10,5))
-        self.ax_noise.set_title("Noise spectrum")
+        self.ax_noise.set_title("Squared-noise spectrum")
         for a in range(arm_n):
             if arm_n > 1:
-                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:], s=2, c='C0')
-                line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:], s=2, c='C1')
-                line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:], s=2, c='C2')
-                line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:], s=2, c='C3')
-            else:
-                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:], s=2, c='C0')
-                line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:], s=2, c='C1')
-                line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:], s=2, c='C2')
-                line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:], s=2, c='C3')
+                tot_eff = self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a])[0]
+                line0, = self.ax_noise.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff \
+                     * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]), c='C0')
+                line1, = self.ax_noise.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff \
+                     * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
+                     * slice_n * slice_width * seeing * 1.2, c='C1')
 
+                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
+                line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='C1', alpha=0.1)
+                line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:]**2, s=2, c='C2')
+                line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:]**2, s=2, c='C3')
+            else:
+                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:]**2, s=2, c='C0', alpha=0.1)
+                line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:]**2, s=2, c='C1', alpha=0.1)
+                line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:]**2, s=2, c='C2')
+                line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:]**2, s=2, c='C3')
+            
+            self.dc = self.err_dark_extr[0,0]**2
+            self.ron2 = self.err_ron_extr[0,0]**2
+                
+
+
+            if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
+                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] * tot_eff \
+                                          * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]))
+                self.ax_noise.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
+                test_arm_bckg = np.interp(test_wave, self.arm_wave[a], self.arm_bckg[a] * tot_eff \
+                                          * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
+                                          * slice_n * slice_width * seeing * 1.2)
+                self.ax_noise.text(test_wave, test_arm_bckg, '%2.3e' % test_arm_bckg)
+            
+                
         line2.set_label('Target')
         line3.set_label('Background')
         line4.set_label('Dark')
@@ -1321,6 +1425,7 @@ class Spec(object):
         self.ax_noise.legend(loc=2, fontsize=8)
         self.ax_noise.set_xlabel('Wavelength')
         self.ax_noise.set_ylabel('Flux\n(ph/extracted pix)')
+        self.ax_noise.set_yscale('log')
         
         fig_pix, self.ax_pix = plt.subplots(figsize=(10,5))
         self.ax_pix.set_title("Extraction spectrum")
@@ -1336,10 +1441,15 @@ class Spec(object):
         self.ax_snr.set_title("SNR")
         linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
         linet.set_label('SNR')
+        test_snr = np.interp(test_wave, self.wave_snr, self.snr)
+        self.snr = test_snr
+        self.ax_snr.text(test_wave, test_snr, '%2.1f' % test_snr)
+        """
         self.ax_snr.text(0.99, 0.92,
                               "Median SNR: %2.1f" % np.median(self.snr),
                               ha='right', va='top',
                               transform=self.ax_snr.transAxes)
+        """
         self.ax_snr.legend(loc=2, fontsize=8)
 
         self.ax_snr.set_xlabel('Wavelength')
@@ -1503,6 +1613,41 @@ class Spec(object):
         return flux * self.atmo_ex
 
     
+    def summary(self):
+        print("")
+        print("Summary (to compare with MGE's reference values):")
+        print("")
+        print(" - Atmosphere efficiency:             %2.3f" % self.atm_eff)
+        print(" - Slit efficiency:                   %2.3f" % self.slit_eff)
+        print(" - Instrument efficiency:             %2.3f" % self.instr_eff)
+        print(" - Telescope efficiency:              %2.3f" % self.tel_eff)
+        print(" - Total efficiency (for target):     %2.3f" % self.obj_eff)
+        print(" - Total efficiency (for background): %2.3f" % self.sky_eff)
+        print("")
+        print(" - Exposure time:    %2.3e %s" % (texp.value, texp.unit))
+        print(" - Telescope area:   %2.5e %s" % (self.phot.area.value, self.phot.area.unit))
+        print(" - Test wavelength:  %2.3e %s" % (self.test_wave.value, self.test_wave.unit))
+        print(" - Sampling (d-lam): %2.3e %s" % (self.d_lam.value, self.d_lam.unit))
+        print("")
+        print(" - Target flux:")
+        print("    - density, raw       (OBJ F0):    %2.3e %s" % (self.obj_f0.value, self.obj_f0.unit))
+        print("    - density, extincted (OBJ F1):    %2.3e %s" % (self.obj_f1.value, self.obj_f1.unit))
+        print("    - density, on CCD    (OBJ F2):    %2.3e %s" % (self.obj_f2.value, self.obj_f2.unit))
+        print("    - collected, on CCD  (OBJ F3):    %2.3e %s" % (self.obj_f3.value, self.obj_f3.unit))
+        print("    - integrated, on CCD (OBJ F4):    %2.3e %s" % (self.obj_f4.value, self.obj_f4.unit))
+        print("    - extracted, on CCD  (OBJ F5):    %2.3e %s" % (self.obj_f5.value, self.obj_f5.unit))
+        print(" - Background flux:")
+        print("    - density            (SKY F0/F1): %2.3e %s" % (self.sky_f01.value, self.sky_f01.unit))
+        print("    - density, on CCD    (SKY F2):    %2.3e %s" % (self.sky_f2.value, self.sky_f2.unit))
+        print("    - collected, on CCD  (SKY F3):    %2.3e %s" % (self.sky_f3.value, self.sky_f3.unit))
+        print("    - integrated, on CCD (SKY F4):    %2.3e %s" % (self.sky_f4.value, self.sky_f4.unit))
+        print("    - extracted, on CCD  (SKY F5):    %2.3e %s" % (self.sky_f5.value, self.sky_f5.unit))
+        print("")
+        print(" - Dark current: %2.2e " % self.dc)
+        print(" - Squared RON:  %2.2e " % self.ron2)
+        print(" - SNR:          %2.1e " % self.snr)
+    
+    
 class Sim():
     
     def __init__(self):
@@ -1593,6 +1738,7 @@ class Sim():
         self.check(True, 'phot', 'spec', 'psf', 'ccd')
         self._ccd.extr_arms(n=arm_n, slice_n=slice_n)
         self._spec.draw(test_wave=test_wave)
+        self._spec.summary()
 
         
     def spec_save(self, file):

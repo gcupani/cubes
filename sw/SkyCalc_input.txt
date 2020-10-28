@@ -27,7 +27,7 @@ vacair          :  vac
 wmin            :  300.0
 wmax            :  2200.0
 wgrid_mode      :  fixed_wavelength_step
-wdelta          :  0.1
+wdelta          :  0.005
 wres            :  20000
 lsf_type        :  none
 lsf_gauss_fwhm  :  5.0
