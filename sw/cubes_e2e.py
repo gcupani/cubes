@@ -760,7 +760,7 @@ class Photons(object):
         self.flux_ref = globals()['flux_ref_'+mag_syst][mag_band]
         self.mag_ref = globals()['mag_ref_'+mag_syst][mag_band]
         
-        self.ref1877 = ascii.read('../database/ABrefSP1877.dat')
+        self.ref1877 = ascii.read('../database/ABrefSp1877.dat')
         wave_ref1877 = self.ref1877['col1']*0.1 * au.nm
         flux_ref1877 = wave_ref1877 \
                        * self.ref1877['col2']*1e-17*au.erg/au.cm**2/au.s/au.Angstrom / (ac.c*ac.h) * au.ph
