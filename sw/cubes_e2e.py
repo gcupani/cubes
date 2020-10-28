@@ -1266,8 +1266,8 @@ class Spec(object):
         #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
         if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
         
-        test_targ_raw = np.interp(test_wave, self.wave, self.targ_raw)
-        test_targ_ext = np.interp(test_wave, self.wave, self.targ_ext)
+        test_targ_raw = np.interp(test_wave, self.wave.value, self.targ_raw.value)
+        test_targ_ext = np.interp(test_wave, self.wave.value, self.targ_ext.value)
 
 
         self.ax.text(test_wave, test_targ_raw, '%2.3e' % test_targ_raw) 
@@ -1279,7 +1279,7 @@ class Spec(object):
         self.atm_eff = test_targ_ext/test_targ_raw
         
         if bckg:
-            test_bckg_raw = np.interp(test_wave, self.wave, self.bckg_raw)
+            test_bckg_raw = np.interp(test_wave, self.wave.value, self.bckg_raw.value)
             self.ax.text(test_wave, test_bckg_raw, '%2.3e' % test_bckg_raw) 
             self.sky_f01 = test_bckg_raw * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
                            / (self.phot.area * texp) 
@@ -1414,7 +1414,7 @@ class Spec(object):
                 self.ax_noise.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
                 test_arm_bckg = np.interp(test_wave, self.arm_wave[a], self.arm_bckg[a] * tot_eff \
                                           * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
-                                          * slice_n * slice_width * seeing * 1.2)
+                                          * slice_n * slice_width.value * seeing.value * 1.2)
                 self.ax_noise.text(test_wave, test_arm_bckg, '%2.3e' % test_arm_bckg)
             
                 
