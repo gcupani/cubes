@@ -68,9 +68,6 @@ arm_n = 2  # Number of arms
 def eff_read(file, col):
     return np.array(ascii.read(jsp['advanced'][file])[col])
 
-eff_file = 'database/EFFICIENCIES'
-disp_file = 'database/DISPERSION'
-
 ccd_xsize = int(jsp['advanced']['NXpix'])*au.pixel  # X size of the CCD
 ccd_ysize = int(jsp['advanced']['NYpix'])*au.pixel  # Y size of the CCD
 ccd_xbin = 1  # X binning of the CCD
@@ -108,7 +105,8 @@ psf_cen = (0,0)  # Center of the PSF
 targ_prof = None
 targ_invrad_params = {'r_eff': 20}
 targ_sersic_params = {'amplitude': 1, 'r_eff': 20, 'n': 4, 'x_0': 0, 'y_0': 0, 'ellip': 0.5, 'theta': 1}
-area = (400*au.cm)**2 * np.pi  # Telescope area
+radius = 405.8792924011*au.cm  # Telescope equivalent radius
+area = radius**2 * np.pi  # Telescope area
 texp = float(jsp['exposureTime'])*au.s  # Exposure time
 mag_syst = 'Vega'  # Magnitude system
 mag_band = 'V'  # Magnitude band
@@ -132,5 +130,5 @@ spec_pars = ['spec_templ', 'spec_file', 'wmin', 'wmax', 'qso_zem', 'qso_lya_abs'
 psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'targ_prof', 'targ_invrad_params', 'targ_sersic_params', 'slice_n', 
             'slice_length', 'slice_width', 'seeing']
 ccd_pars = ['ccd_gain', 'ccd_ron', 'ccd_dark', 'ccd_xsize', 'ccd_ysize', 'pix_xsize', 'pix_ysize', 'ccd_xbin', 'ccd_ybin',
-            'arm_n', 'wave_d', 'wave_d_shift', 'eff_file', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 
-            'disp_file', 'disp_wave', 'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']
+            'arm_n', 'wave_d', 'wave_d_shift', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 
+            'disp_wave', 'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']

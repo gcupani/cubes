@@ -46,30 +46,30 @@ class CCD(object):
 
         self.func = func
         
-        if disp_file is not None:
-            disp = ascii.read(disp_file)
-            for a in range(arm_n):
-                if arm_n==3: 
-                    size = 'l' if ysize.value > 5000 else 's'
-                else:
-                    size = ''
-                wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)+size])*0.1
-                sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)+size])*1e3
-                resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
-                if a==0:
-                    self.disp_wave = [wave]
-                    self.disp_sampl = [sampl]
-                    self.disp_resol = [resol]
-                else:
-                    self.disp_wave = np.vstack((self.disp_wave, wave))
-                    self.disp_sampl = np.vstack((self.disp_sampl, sampl))
-                    self.disp_resol = np.vstack((self.disp_resol, resol))
+        
+        disp = ascii.read('../database/DISPERSION')
+        for a in range(arm_n):
+            if arm_n==3: 
+                size = 'l' if ysize.value > 5000 else 's'
+            else:
+                size = ''
+            wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)+size])*0.1
+            sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+            resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+            if a==0:
+                self.disp_wave = [wave]
+                self.disp_sampl = [sampl]
+                self.disp_resol = [resol]
+            else:
+                self.disp_wave = np.vstack((self.disp_wave, wave))
+                self.disp_sampl = np.vstack((self.disp_sampl, sampl))
+                self.disp_resol = np.vstack((self.disp_resol, resol))
 
-            self.disp_wave *= au.nm
-            self.disp_sampl *= au.nm/au.pixel
-            #print(self.disp_wave)
-            self.spec.disp_wave = self.disp_wave
-            self.spec.disp_sampl = self.disp_sampl
+        self.disp_wave *= au.nm
+        self.disp_sampl *= au.nm/au.pixel
+        #print(self.disp_wave)
+        self.spec.disp_wave = self.disp_wave
+        self.spec.disp_sampl = self.disp_sampl
 
 
     def add_arms(self, n, wave_d, wave_d_shift):
@@ -287,7 +287,7 @@ class CCD(object):
         
         # Efficiency
         if wmin_d is not None and wmax_d is not None:
-            tot_eff = self.tot_eff(wave, wmin_d, wmax_d)[0]
+            tot_eff = self.tot_eff(self.arm_counter, wave, wmin_d, wmax_d)[0]
             sl_targ = sl_targ * tot_eff
             sl_bckg = sl_bckg * tot_eff
         #plt.plot(wave,sl_targ)
@@ -542,6 +542,7 @@ class CCD(object):
                                       self.sl_cen[i]+self.sl_hlength, a]
                     s_extr[p], n_extr[p], (n_targ_extr[p], n_bckg_extr[p], n_dark_extr[p], n_ron_extr[p], p_extr[p]) \
                         = getattr(self, 'extr_'+self.func)(y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
+                    
                 flux_extr += s_extr
                 err_extr = np.sqrt(err_extr**2 + n_extr**2)
                 err_targ_extr = np.sqrt(err_targ_extr**2 + n_targ_extr**2)
@@ -550,6 +551,9 @@ class CCD(object):
                 err_ron_extr = np.sqrt(err_ron_extr**2 + n_ron_extr**2)
                 
                 pix_extr = pix_extr+p_extr
+            #plt.plot(wave_extr, flux_extr)
+            #plt.plot(wave_extr, err_targ_extr**2)
+            #plt.show()
             print("SNR across arm %i:               " % a)
             snr_extr = flux_extr/err_extr
             for w in self.disp_wave[a]:
@@ -681,24 +685,46 @@ class CCD(object):
             return new
 
 
-    def tot_eff(self, wave, wmin_d, wmax_d, fact=2, method='interp'):
+    def tot_eff(self, arm_counter, wave, wmin_d, wmax_d, fact=2, method='interp'):
         dch_shape = expit(fact*(wave-wmin_d))*expit(fact*(wmax_d-wave))
         i = self.arm_counter
-        if eff_file is not None:
-            eff = ascii.read(eff_file)
-            eff_wave = np.array(eff['wavelength'])*0.1*au.nm
-            eff_fib = np.array(eff['fiber'])
-            eff_adc = np.array(eff['adc'])
-            eff_opo = np.array(eff['other_preopt'])
-            eff_slc = np.array(eff['slicer'])
-            eff_dch = np.array(eff['dichroic'])
-            eff_fld = np.array(eff['fold'])
-            eff_col = np.array(eff['collimator'])
-            eff_cam = np.array(eff['camera'])
-            
-            eff_grt = np.array(eff['grating_'+str(arm_n)+'ch'])
-            eff_ccd = np.array(eff['qe'])
-            eff_tel = np.array(eff['telescope'])
+        #print(arm_counter, arm_n)
+        try:
+            eff = ascii.read('../database/EFF_%sARM' % str(arm_n))
+        except:
+            if arm_counter == 0:
+                arm_str = "1ST"
+            if arm_counter == 1:
+                arm_str = "2ND"
+            eff = ascii.read('../database/EFF_%sARM_%sCH' % (str(arm_n), arm_str))
+                             
+        """
+        eff_wave = np.array(eff['wavelength'])*0.1*au.nm
+        eff_fib = np.array(eff['fiber'])
+        eff_adc = np.array(eff['adc'])
+        eff_opo = np.array(eff['other_preopt'])
+        eff_slc = np.array(eff['slicer'])
+        eff_dch = np.array(eff['dichroic'])
+        eff_fld = np.array(eff['fold'])
+        eff_col = np.array(eff['collimator'])
+        eff_cam = np.array(eff['camera'])
+        eff_grt = np.array(eff['grating_'+str(arm_n)+'ch'])
+        eff_ccd = np.array(eff['qe'])
+        eff_tel = np.array(eff['telescope'])
+        """
+        
+        eff_wave = np.array(eff['Wavelen'])*au.nm
+        eff_fib = np.array(eff['Fiber'])
+        eff_adc = np.array(eff['ADC'])
+        eff_opo = np.array(eff['others'])
+        eff_slc = np.array(eff['Slicer'])
+        eff_dch = np.array(eff['Dichroic'])
+        eff_fld = np.array(eff['Fold'])
+        eff_col = np.array(eff['Collimator'])
+        eff_cam = np.array(eff['Camera'])
+        eff_grt = np.array(eff['Grating'])
+        eff_ccd = np.array(eff['QE'])
+        eff_tel = np.full(len(eff_wave), 0.75)
             
         if method=='cspline':
             fib = cspline(eff_wave, eff_fib)(wave)
@@ -724,6 +750,7 @@ class CCD(object):
             grt = np.interp(wave, eff_wave.value, eff_grt)
             ccd = np.interp(wave, eff_wave.value, eff_ccd)
             tel = np.interp(wave, eff_wave.value, eff_tel)
+        
         tot = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd * tel
         instr = fib * adc * opo * slc * dch * fld * col * cam * grt * ccd
         
@@ -1332,7 +1359,7 @@ class Spec(object):
         self.ax.set_title("Spectrum")
         
         for a in range(arm_n):
-            tot_eff, instr_eff, tel_eff = self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a])
+            tot_eff, instr_eff, tel_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])
             line0, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='C0')
             line1, = self.ax.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='C1')
             if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
@@ -1358,9 +1385,12 @@ class Spec(object):
                               * slice_n * slice_width * seeing * 1.2
                 self.sky_f4 = (self.sky_f3 * self.d_lam).to(au.ph/au.pixel)
                 
-                sel = np.where(np.logical_and(self.wave_extr[a,:]>test_wave-self.d_lam.value*5,
-                                              self.wave_extr[a,:]<test_wave+self.d_lam.value*5))
-                self.obj_f5 = np.mean(self.flux_extr[a,:][sel]) / au.pixel
+                print(test_wave, self.d_lam.value)
+                sel = np.where(np.logical_and(self.wave_extr[a,:]>test_wave-self.d_lam.value*0.5,
+                                              self.wave_extr[a,:]<test_wave+self.d_lam.value*0.5))
+                #self.obj_f5 = np.mean(self.flux_extr[a,:][sel]) / au.pixel
+                self.obj_f5 = np.mean(self.err_targ_extr[a,:][sel]**2) * au.ph/ au.pixel
+
                 self.sky_f5 = np.mean(self.err_bckg_extr[a,:][sel]**2) * au.ph/ au.pixel
 
 
@@ -1386,7 +1416,7 @@ class Spec(object):
         self.ax_noise.set_title("Squared-noise spectrum")
         for a in range(arm_n):
             if arm_n > 1:
-                tot_eff = self.tot_eff(self.arm_wave[a], self.m_d[a], self.M_d[a])[0]
+                tot_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])[0]
                 line0, = self.ax_noise.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff \
                      * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]), c='C0')
                 line1, = self.ax_noise.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff \
