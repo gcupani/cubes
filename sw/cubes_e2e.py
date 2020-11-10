@@ -47,15 +47,28 @@ class CCD(object):
         self.func = func
         
         
-        disp = ascii.read('../database/DISPERSION')
+        #disp = ascii.read('../database/DISPERSION')
         for a in range(arm_n):
+            try:
+                disp = ascii.read('../database/DISP_%sARM' % str(arm_n))
+            except:
+                if a == 0:
+                    arm_str = "1ST"
+                if a == 1:
+                    arm_str = "2ND"
+                disp = ascii.read('../database/DISP_%sARM_%sCH' % (str(arm_n), arm_str))
+            
             if arm_n==3: 
                 size = 'l' if ysize.value > 5000 else 's'
             else:
                 size = ''
-            wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)+size])*0.1
-            sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)+size])*1e3
-            resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+            #wave = np.array(disp['wave_'+str(arm_n)+'ch_'+str(a)+size])*0.1
+            #sampl = np.array(disp['sampl_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+            #resol = np.array(disp['resol_'+str(arm_n)+'ch_'+str(a)+size])*1e3
+            wave = np.array(disp['Wavelen'])*0.1
+            sampl = np.array(disp['LinDisp'])*1e3
+            resol = np.array(disp['Resol'])
+
             if a==0:
                 self.disp_wave = [wave]
                 self.disp_sampl = [sampl]
@@ -119,7 +132,7 @@ class CCD(object):
                 except:
                     self.wmaxs_d = np.append(self.wmaxs_d, wmax.to(au.nm).value)
         else:
-            wcen = 347.5*au.nm
+            wcen = 365.0*au.nm
             wmin = wcen-self.ysize.value//2*self.ysize.unit*self.disp_sampl[0]
             wmax = wcen+self.ysize.value//2*self.ysize.unit*self.disp_sampl[-1]
             dwmin = np.full(int(self.ysize.value), wcen)
@@ -407,16 +420,19 @@ class CCD(object):
             self.ax_s[2].set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_s[2].set_ylabel('FWHM (%s)' % au.pixel)
             
-            if test_wave > np.min(self.spec.arm_wave[i]) and test_wave < np.max(self.spec.arm_wave[i]):
-                test_resol = np.interp(test_wave, self.spec.arm_wave[i], self.spec.resol[i])
-                test_sampl = cspline(spl_wave, spl_sampl*ccd_ybin)(test_wave)
-                test_fwhm = np.interp(test_wave, self.spec.arm_wave[i], self.spec.fwhm[i])
+            test_wave = np.ravel([test_wave])
 
-                self.ax_s[0].text(test_wave, test_resol, '%2.3e' % test_sampl)
-                self.ax_s[1].text(test_wave, test_sampl, '%2.3e' % test_sampl)
-                self.ax_s[2].text(test_wave, test_fwhm, '%2.3e' % test_fwhm)
-                
-                self.spec.d_lam = test_sampl * au.nm/au.pixel
+            for t in test_wave:
+                if t > np.min(self.spec.arm_wave[i]) and t < np.max(self.spec.arm_wave[i]):
+                    test_resol = np.interp(t, self.spec.arm_wave[i], self.spec.resol[i])
+                    test_sampl = cspline(spl_wave, spl_sampl*ccd_ybin)(t)
+                    test_fwhm = np.interp(t, self.spec.arm_wave[i], self.spec.fwhm[i])
+    
+                    self.ax_s[0].text(t, test_resol, '%2.3e' % test_sampl)
+                    self.ax_s[1].text(t, test_sampl, '%2.3e' % test_sampl)
+                    self.ax_s[2].text(t, test_fwhm, '%2.3e' % test_fwhm)
+                    
+                    self.spec.d_lam = test_sampl * au.nm/au.pixel
 
 
 
@@ -450,16 +466,19 @@ class CCD(object):
                            *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses),
                            label='Total+ext.+slit' if i==0 else '', color='C0', linestyle=':')
 
-            test_eff_tot = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i])
-            test_eff_tot_ext = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i]\
-                               *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex))
-            test_eff_tot_ext_slit = np.interp(test_wave, self.eff_wave[i], self.eff_tot[i]\
-                                    *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses))
-            
-            if test_wave > np.min(self.spec.arm_wave[i//slice_n]) and test_wave < np.max(self.spec.arm_wave[i//slice_n]):
-                self.ax_e.text(test_wave, test_eff_tot, '%2.4f' % test_eff_tot) 
-                self.ax_e.text(test_wave, test_eff_tot_ext, '%2.4f' % test_eff_tot_ext) 
-                self.ax_e.text(test_wave, test_eff_tot_ext_slit, '%2.4f' % test_eff_tot_ext_slit, va='top') 
+            test_wave = np.ravel([test_wave])
+
+            for t in test_wave: 
+                test_eff_tot = np.interp(t, self.eff_wave[i], self.eff_tot[i])
+                test_eff_tot_ext = np.interp(t, self.eff_wave[i], self.eff_tot[i]\
+                                   *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex))
+                test_eff_tot_ext_slit = np.interp(t, self.eff_wave[i], self.eff_tot[i]\
+                                        *np.interp(self.eff_wave[i], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses))
+                
+                if t > np.min(self.spec.arm_wave[i//slice_n]) and t < np.max(self.spec.arm_wave[i//slice_n]):
+                    self.ax_e.text(t, test_eff_tot, '%2.4f' % test_eff_tot) 
+                    self.ax_e.text(t, test_eff_tot_ext, '%2.4f' % test_eff_tot_ext) 
+                    self.ax_e.text(t, test_eff_tot_ext_slit, '%2.4f' % test_eff_tot_ext_slit, va='top') 
             
             self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
             self.ax_e.set_ylabel('Fractional throughput')
@@ -617,7 +636,7 @@ class CCD(object):
         
     def extr_sum(self, y, dy, dy_targ, **kwargs):
         #print(self.psf_xlength, self.psf_xlength//2,(1.2*self.psf_xlength)//2)
-        sel = np.s_[self.sl_hlength-(int)(1.2*self.psf_xlength)//2:self.sl_hlength+(int)(1.2*self.psf_xlength)//2]
+        sel = np.s_[self.sl_hlength-(int)(extr_fwhm_num*self.psf_xlength)//2:self.sl_hlength+(int)(extr_fwhm_num*self.psf_xlength)//2]
         ysel = y[sel]
         dysel = dy[sel]
         dysel_targ = dy_targ[sel]
@@ -1293,25 +1312,41 @@ class Spec(object):
         #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
         if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
         
-        test_targ_raw = np.interp(test_wave, self.wave.value, self.targ_raw.value)
-        test_targ_ext = np.interp(test_wave, self.wave.value, self.targ_ext.value)
-
-
-        self.ax.text(test_wave, test_targ_raw, '%2.3e' % test_targ_raw) 
-        self.ax.text(test_wave, test_targ_ext, '%2.3e' % test_targ_ext) 
-
-        self.obj_f0 = test_targ_raw * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
-        self.obj_f1 = test_targ_ext * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
-
-        self.atm_eff = test_targ_ext/test_targ_raw
         
+        test_wave = np.ravel([test_wave])
+
+        self.obj_f0 = np.array([])
+        self.obj_f1 = np.array([])
+        self.atm_eff = np.array([])
         if bckg:
-            test_bckg_raw = np.interp(test_wave, self.wave.value, self.bckg_raw.value)
-            self.ax.text(test_wave, test_bckg_raw, '%2.3e' % test_bckg_raw) 
-            self.sky_f01 = test_bckg_raw * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
-                           / (self.phot.area * texp) 
+            self.sky_f01 = np.array([])
+        for t in test_wave: 
+        
+            test_targ_raw = np.interp(t, self.wave.value, self.targ_raw.value)
+            test_targ_ext = np.interp(t, self.wave.value, self.targ_ext.value)
+    
+    
+            self.ax.text(t, test_targ_raw, '%2.3e' % test_targ_raw) 
+            self.ax.text(t, test_targ_ext, '%2.3e' % test_targ_ext) 
+    
+            self.obj_f0 = np.append(self.obj_f0, test_targ_raw * 0.1 / (self.phot.area * texp).value)
+            self.obj_f1 = np.append(self.obj_f1, test_targ_ext * 0.1 / (self.phot.area * texp).value)
+    
+            self.atm_eff = np.append(self.atm_eff, test_targ_ext/test_targ_raw)
+            
+            if bckg:
+                test_bckg_raw = np.interp(t, self.wave.value, self.bckg_raw.value)
+                self.ax.text(t, test_bckg_raw, '%2.3e' % test_bckg_raw) 
+                self.sky_f01 = np.append(self.sky_f01, test_bckg_raw * 0.1 / (self.phot.area * texp).value)
 
 
+        self.obj_f0 *= au.ph/au.Angstrom / (self.phot.area * texp).unit
+        self.obj_f1 *= au.ph/au.Angstrom / (self.phot.area * texp).unit
+
+        if bckg:
+            self.sky_f01 *= au.ph/au.Angstrom / (self.phot.area * texp).unit
+
+                
         self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)
         self.ax.set_ylabel('Flux density\n(%s)' % self.targ_raw.unit)
         self.ax.grid(linestyle=':')
@@ -1323,6 +1358,7 @@ class Spec(object):
 
         
     def draw(self, test_wave=380):
+        test_wave = np.ravel([test_wave])
         self.test_wave = test_wave * au.nm
         fig_p, self.ax_p = plt.subplots(figsize=(7,7))
         self.ax_p.set_title("Photon balance (extraction)")
@@ -1355,47 +1391,67 @@ class Spec(object):
         p3[0][1].set_alpha(1/6)
         self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0],p3[0][0]], [sl_l[0]]+sl_l[1::2])
 
+
         self.draw_in(bckg=False, show=False, test_wave=test_wave)
         self.ax.set_title("Spectrum")
         
+        self.instr_eff = np.array([]) 
+        self.tel_eff = np.array([])
+        self.sky_eff = np.array([])
+        self.obj_eff = np.array([])
+        self.obj_f2 = np.array([])
+        self.obj_f3 = np.array([])
+        self.obj_f4 = np.array([])
+        self.sky_f01 = self.sky_f01 * (slice_n * slice_width * seeing * extr_fwhm_num).value
+        self.sky_f0 = np.array([])
+        self.sky_f2 = np.array([])
+        self.sky_f3 = np.array([])
+        self.sky_f4 = np.array([])
+        self.obj_f5 = np.array([])
+        self.sky_f5 = np.array([])
+
         for a in range(arm_n):
             tot_eff, instr_eff, tel_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])
             line0, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='C0')
             line1, = self.ax.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='C1')
-            if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
-                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] * tot_eff)
-                self.ax.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
-                test_arm_bckg = np.interp(test_wave, self.arm_wave[a], self.arm_bckg[a] * tot_eff)
-                self.ax.text(test_wave, test_arm_bckg, '%2.3e' % test_arm_bckg)
 
+      
+            for i, t in enumerate(test_wave):
+                if t > np.min(self.arm_wave[a]) and t < np.max(self.arm_wave[a]):
+    
+                    test_arm_targ = np.interp(t, self.arm_wave[a], self.arm_targ[a] * tot_eff)
+                    self.ax.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
+                    test_arm_bckg = np.interp(t, self.arm_wave[a], self.arm_bckg[a] * tot_eff)
+                    self.ax.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
+    
+                    
+                    self.instr_eff = np.append(self.instr_eff, np.interp(t, self.arm_wave[a], instr_eff))
+                    self.tel_eff = np.append(self.tel_eff, np.interp(t, self.arm_wave[a], tel_eff))           
+                    self.sky_eff = np.append(self.sky_eff, np.interp(t, self.arm_wave[a], tot_eff))
+                    self.obj_eff = np.append(self.obj_eff, self.atm_eff[i]*self.slit_eff*np.interp(t, self.arm_wave[a], tot_eff))
+    
+                    self.obj_f2 = np.append(self.obj_f2, test_arm_targ * 0.1 / (self.phot.area * texp).value)
+                    self.obj_f3 = np.append(self.obj_f3, test_arm_targ * 0.1)
+                    self.obj_f4 = np.append(self.obj_f4, test_arm_targ * self.d_lam.value)
+                    
+                    self.sky_f2 = np.append(self.sky_f2, test_arm_bckg * 0.1 \
+                                  / (self.phot.area * texp).value * (slice_n * slice_width * seeing * extr_fwhm_num).value)
+                    sky_f3 = test_arm_bckg * (slice_n * slice_width * seeing * extr_fwhm_num).value
+                    self.sky_f3 = np.append(self.sky_f3, sky_f3 * 0.1)
+                    self.sky_f4 = np.append(self.sky_f4, sky_f3 * self.d_lam.value)
+                    
+                    #print(test_wave, self.d_lam.value)
+                    if arm_n > 1:
+                        sel = np.where(np.logical_and(self.wave_extr[a,:]>t-self.d_lam.value*0.5,
+                                                      self.wave_extr[a,:]<t+self.d_lam.value*0.5))
+                        self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[a,:][sel]**2))
+                        self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[a,:][sel]**2))
+                    else:
+                        sel = np.where(np.logical_and(self.wave_extr[:]>t-self.d_lam.value*0.5,
+                                                      self.wave_extr[:]<t+self.d_lam.value*0.5))
+                        self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[:][sel]**2))
+                        self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[:][sel]**2))
                 
-                self.instr_eff = np.interp(test_wave, self.arm_wave[a], instr_eff)
-                self.tel_eff = np.interp(test_wave, self.arm_wave[a], tel_eff)           
-                self.sky_eff = np.interp(test_wave, self.arm_wave[a], tot_eff)
-                self.obj_eff = self.atm_eff*self.slit_eff*self.sky_eff
-
-                self.obj_f2 = test_arm_targ * 0.1*au.ph/au.Angstrom / (self.phot.area * texp)
-                self.obj_f3 = test_arm_targ * 0.1*au.ph/au.Angstrom
-                self.obj_f4 = (self.obj_f3 * self.d_lam).to(au.ph/au.pixel)
-                
-                self.sky_f01 = self.sky_f01 * slice_n * slice_width * seeing * 1.2
-                self.sky_f2 = test_arm_bckg * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
-                              / (self.phot.area * texp) * slice_n * slice_width * seeing * 1.2
-                self.sky_f3 = test_arm_bckg * 0.1*au.ph/au.Angstrom/au.arcsec**2 \
-                              * slice_n * slice_width * seeing * 1.2
-                self.sky_f4 = (self.sky_f3 * self.d_lam).to(au.ph/au.pixel)
-                
-                print(test_wave, self.d_lam.value)
-                sel = np.where(np.logical_and(self.wave_extr[a,:]>test_wave-self.d_lam.value*0.5,
-                                              self.wave_extr[a,:]<test_wave+self.d_lam.value*0.5))
-                #self.obj_f5 = np.mean(self.flux_extr[a,:][sel]) / au.pixel
-                self.obj_f5 = np.mean(self.err_targ_extr[a,:][sel]**2) * au.ph/ au.pixel
-
-                self.sky_f5 = np.mean(self.err_bckg_extr[a,:][sel]**2) * au.ph/ au.pixel
-
-
-
-
 
             if arm_n > 1:
                 line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0', alpha=0.1)
@@ -1404,6 +1460,19 @@ class Spec(object):
                 line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.1)
                 line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='gray', alpha=0.1)
                 
+        
+        self.obj_f2 = self.obj_f2 * au.ph/au.Angstrom / (self.phot.area * texp).unit
+        self.obj_f3 = self.obj_f3 * au.ph/au.Angstrom
+        self.obj_f4 = self.obj_f4 * (au.ph/au.Angstrom * (self.d_lam)).to(au.ph/au.pixel).unit
+        self.obj_f5 = self.obj_f5 * au.ph/ au.pixel
+        
+        self.sky_f2 = self.sky_f2 * au.ph/au.Angstrom / (self.phot.area * texp).unit
+        self.sky_f3 = self.sky_f3 * au.ph/au.Angstrom
+        self.sky_f4 = self.sky_f4 * (au.ph/au.Angstrom * (self.d_lam)).to(au.ph/au.pixel).unit
+        self.sky_f5 = self.sky_f5 * au.ph/ au.pixel
+
+
+        
         line0.set_label('On detector')            
         line1.set_label('On detector (error)')            
         line2.set_label('Extracted')
@@ -1421,7 +1490,7 @@ class Spec(object):
                      * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]), c='C0')
                 line1, = self.ax_noise.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff \
                      * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
-                     * slice_n * slice_width * seeing * 1.2, c='C1')
+                     * slice_n * slice_width * seeing * extr_fwhm_num, c='C1')
 
                 line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
                 line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='C1', alpha=0.1)
@@ -1433,19 +1502,24 @@ class Spec(object):
                 line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:]**2, s=2, c='C3')
             
-            self.dc = self.err_dark_extr[0,0]**2
-            self.ron2 = self.err_ron_extr[0,0]**2
+            if arm_n > 1:
+                self.dc = self.err_dark_extr[0,0]**2
+                self.ron2 = self.err_ron_extr[0,0]**2
+            else:
+                self.dc = self.err_dark_extr[0]**2
+                self.ron2 = self.err_ron_extr[0]**2
+
                 
 
-
-            if test_wave > np.min(self.arm_wave[a]) and test_wave < np.max(self.arm_wave[a]):
-                test_arm_targ = np.interp(test_wave, self.arm_wave[a], self.arm_targ[a] * tot_eff \
-                                          * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]))
-                self.ax_noise.text(test_wave, test_arm_targ, '%2.3e' % test_arm_targ)
-                test_arm_bckg = np.interp(test_wave, self.arm_wave[a], self.arm_bckg[a] * tot_eff \
-                                          * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
-                                          * slice_n * slice_width.value * seeing.value * 1.2)
-                self.ax_noise.text(test_wave, test_arm_bckg, '%2.3e' % test_arm_bckg)
+            for t in test_wave: 
+                if t > np.min(self.arm_wave[a]) and t < np.max(self.arm_wave[a]):
+                    test_arm_targ = np.interp(t, self.arm_wave[a], self.arm_targ[a] * tot_eff \
+                                              * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]))
+                    self.ax_noise.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
+                    test_arm_bckg = np.interp(t, self.arm_wave[a], self.arm_bckg[a] * tot_eff \
+                                              * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
+                                              * slice_n * slice_width.value * seeing.value * extr_fwhm_num)
+                    self.ax_noise.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
             
                 
         line2.set_label('Target')
@@ -1471,9 +1545,11 @@ class Spec(object):
         self.ax_snr.set_title("SNR")
         linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
         linet.set_label('SNR')
-        test_snr = np.interp(test_wave, self.wave_snr, self.snr)
-        self.snr = test_snr
-        self.ax_snr.text(test_wave, test_snr, '%2.1f' % test_snr)
+        self.test_snr = np.array([])
+        for t in test_wave:
+            test_snr = np.interp(t, self.wave_snr, self.snr)
+            self.test_snr = np.append(self.test_snr, test_snr)
+            self.ax_snr.text(t, test_snr, '%2.1f' % test_snr)
         """
         self.ax_snr.text(0.99, 0.92,
                               "Median SNR: %2.1f" % np.median(self.snr),
@@ -1647,37 +1723,82 @@ class Spec(object):
         print("")
         print("Summary (to compare with MGE's reference values):")
         print("")
-        print(" - Atmosphere efficiency:             %2.3f" % self.atm_eff)
-        print(" - Slit efficiency:                   %2.3f" % self.slit_eff)
-        print(" - Instrument efficiency:             %2.3f" % self.instr_eff)
-        print(" - Telescope efficiency:              %2.3f" % self.tel_eff)
-        print(" - Total efficiency (for target):     %2.3f" % self.obj_eff)
-        print(" - Total efficiency (for background): %2.3f" % self.sky_eff)
-        print("")
-        print(" - Exposure time:    %2.3e %s" % (texp.value, texp.unit))
-        print(" - Telescope area:   %2.5e %s" % (self.phot.area.value, self.phot.area.unit))
-        print(" - Test wavelength:  %2.3e %s" % (self.test_wave.value, self.test_wave.unit))
-        print(" - Sampling (d-lam): %2.3e %s" % (self.d_lam.value, self.d_lam.unit))
-        print("")
-        print(" - Target flux:")
-        print("    - density, raw       (OBJ F0):    %2.3e %s" % (self.obj_f0.value, self.obj_f0.unit))
-        print("    - density, extincted (OBJ F1):    %2.3e %s" % (self.obj_f1.value, self.obj_f1.unit))
-        print("    - density, on CCD    (OBJ F2):    %2.3e %s" % (self.obj_f2.value, self.obj_f2.unit))
-        print("    - collected, on CCD  (OBJ F3):    %2.3e %s" % (self.obj_f3.value, self.obj_f3.unit))
-        print("    - integrated, on CCD (OBJ F4):    %2.3e %s" % (self.obj_f4.value, self.obj_f4.unit))
-        print("    - extracted, on CCD  (OBJ F5):    %2.3e %s" % (self.obj_f5.value, self.obj_f5.unit))
-        print(" - Background flux:")
-        print("    - density            (SKY F0/F1): %2.3e %s" % (self.sky_f01.value, self.sky_f01.unit))
-        print("    - density, on CCD    (SKY F2):    %2.3e %s" % (self.sky_f2.value, self.sky_f2.unit))
-        print("    - collected, on CCD  (SKY F3):    %2.3e %s" % (self.sky_f3.value, self.sky_f3.unit))
-        print("    - integrated, on CCD (SKY F4):    %2.3e %s" % (self.sky_f4.value, self.sky_f4.unit))
-        print("    - extracted, on CCD  (SKY F5):    %2.3e %s" % (self.sky_f5.value, self.sky_f5.unit))
-        print("")
-        print(" - Dark current: %2.2e " % self.dc)
-        print(" - Squared RON:  %2.2e " % self.ron2)
-        print(" - SNR:          %2.1e " % self.snr)
-    
-    
+        if len(self.atm_eff) == 1:
+            print(" - Atmosphere efficiency:             %2.3f" % self.atm_eff)
+            print(" - Slit efficiency:                   %2.3f" % self.slit_eff)
+            print(" - Instrument efficiency:             %2.3f" % self.instr_eff)
+            print(" - Telescope efficiency:              %2.3f" % self.tel_eff)
+            print(" - Total efficiency (for target):     %2.3f" % self.obj_eff)
+            print(" - Total efficiency (for background): %2.3f" % self.sky_eff)
+            print("")
+            print(" - Exposure time:    %2.3e %s" % (texp.value, texp.unit))
+            print(" - Telescope area:   %2.5e %s" % (self.phot.area.value, self.phot.area.unit))
+            print(" - Test wavelength:  %2.3e %s" % (self.test_wave.value, self.test_wave.unit))
+            print(" - Sampling (d-lam): %2.3e %s" % (self.d_lam.value, self.d_lam.unit))
+            print("")
+            print(" - Target flux:")
+            print("    - density, raw       (OBJ F0):    %2.3e %s" % (self.obj_f0.value, self.obj_f0.unit))
+            print("    - density, extincted (OBJ F1):    %2.3e %s" % (self.obj_f1.value, self.obj_f1.unit))
+            print("    - density, on CCD    (OBJ F2):    %2.3e %s" % (self.obj_f2.value, self.obj_f2.unit))
+            print("    - collected, on CCD  (OBJ F3):    %2.3e %s" % (self.obj_f3.value, self.obj_f3.unit))
+            print("    - integrated, on CCD (OBJ F4):    %2.3e %s" % (self.obj_f4.value, self.obj_f4.unit))
+            print("    - extracted, on CCD  (OBJ F5):    %2.3e %s" % (self.obj_f5.value, self.obj_f5.unit))
+            print(" - Background flux:")
+            print("    - density            (SKY F0/F1): %2.3e %s" % (self.sky_f01.value, self.sky_f01.unit))
+            print("    - density, on CCD    (SKY F2):    %2.3e %s" % (self.sky_f2.value, self.sky_f2.unit))
+            print("    - collected, on CCD  (SKY F3):    %2.3e %s" % (self.sky_f3.value, self.sky_f3.unit))
+            print("    - integrated, on CCD (SKY F4):    %2.3e %s" % (self.sky_f4.value, self.sky_f4.unit))
+            print("    - extracted, on CCD  (SKY F5):    %2.3e %s" % (self.sky_f5.value, self.sky_f5.unit))
+            print("")
+            print(" - Dark current: %2.2e " % self.dc)
+            print(" - Squared RON:  %2.2e " % self.ron2)
+            print(" - SNR:          %2.2e " % self.test_snr)
+
+        else:
+            with np.printoptions(precision=3, floatmode='fixed'):
+                print(" - Atmosphere efficiency:            ", self.atm_eff)
+                print(" - Slit efficiency:                   %2.3f" % self.slit_eff)
+                print(" - Instrument efficiency:            ", self.instr_eff)
+                print(" - Telescope efficiency:             ", self.tel_eff)
+                print(" - Total efficiency (for target):    ", self.obj_eff)
+                print(" - Total efficiency (for background):", self.sky_eff)
+                print("")
+                print(" - Exposure time:    %2.3e %s" % (texp.value, texp.unit))
+                print(" - Telescope area:   %2.5e %s" % (self.phot.area.value, self.phot.area.unit))
+                self.pprint(" - Test wavelength: ", self.test_wave)
+                print(" - Sampling (d-lam): %2.3e %s" % (self.d_lam.value, self.d_lam.unit))
+                print("")
+                print(" - Target flux:")
+                self.pprint("    - density, raw       (OBJ F0):   ", self.obj_f0)
+                self.pprint("    - density, extincted (OBJ F1):   ", self.obj_f1)
+                self.pprint("    - density, on CCD    (OBJ F2):   ", self.obj_f2)
+                self.pprint("    - collected, on CCD  (OBJ F3):   ", self.obj_f3)
+                self.pprint("    - integrated, on CCD (OBJ F4):   ", self.obj_f4)
+                self.pprint("    - extracted, on CCD  (OBJ F5):   ", self.obj_f5)
+                print(" - Background flux:")
+                self.pprint("    - density            (SKY F0/F1):", self.sky_f01)
+                self.pprint("    - density, on CCD    (SKY F2):   ", self.sky_f2)
+                self.pprint("    - collected, on CCD  (SKY F3):   ", self.sky_f3)
+                self.pprint("    - integrated, on CCD (SKY F4):   ", self.sky_f4)
+                self.pprint("    - extracted, on CCD  (SKY F5):   ", self.sky_f5)
+                print("")
+                print(" - Dark current: %2.2e " % self.dc)
+                print(" - Squared RON:  %2.2e " % self.ron2)
+                self.pprint(" - SNR:         ", self.test_snr, "%2.2e")
+
+    def pprint(self, head, array, prec="%2.3e"):
+        print(head, "[", end="")
+        try:
+            [print(prec % i, end=" ") for i in array.value[:-1]]
+            print(prec % array.value[-1], end="")
+            print("] %s" % array.unit)
+        except:
+            [print(prec % i, end=" ") for i in array[:-1]]
+            print(prec % array[-1], end="")
+            print("]")
+
+            
+        
 class Sim():
     
     def __init__(self):

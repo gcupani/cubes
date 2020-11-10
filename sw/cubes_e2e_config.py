@@ -123,6 +123,7 @@ wmax = 430 * au.nm  # Maximum wavelength
 zem = None
 igm_abs = None
 extr_func = 'sum'  # Function for extracting the spectrum ('sum', 'opt' [very slow])
+extr_fwhm_num = 1.2  # Number of FWHMs used in 'sum' extraction
 snr_sampl = 1*au.nm  # Data points per SNR point
 
 phot_pars = ['bckg_mag', 'mag_syst', 'mag_band', 'targ_mag', 'texp']
