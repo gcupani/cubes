@@ -1142,9 +1142,9 @@ class Spec(object):
             rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
             tra = Table(ascii.read('../database/Sky_tra_MFLI_0_Airm_1.16_PWV_30.dat'))
             resc = rad['col2'] * self.phot.area * texp * 1e-7
-            flux_bckg_extend = np.interp(self.wave_extend, rad['col1'], resc) 
-            flux_bckg = np.interp(self.wave, rad['col1'], resc) 
-            self.phot.atmo_ex = 1-np.interp(self.phot.atmo_wave, tra['col1'], tra['col2'])
+            flux_bckg_extend = np.interp(self.wave_extend.value, rad['col1'], resc) 
+            flux_bckg = np.interp(self.wave.value, rad['col1'], resc) 
+            self.phot.atmo_ex = 1-np.interp(self.phot.atmo_wave.value, tra['col1'], tra['col2'])
 
         """
         rad = Table(ascii.read('../database/Sky_rad_MFLI_0_Airm_1.16_PWV_30.dat'))
