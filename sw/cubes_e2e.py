@@ -393,6 +393,9 @@ class CCD(object):
         
         fig_s, self.ax_s = plt.subplots(3, 1, figsize=(10,10), sharex=True)
         self.ax_s[0].set_title("Resolution and sampling")
+            
+        self.spec.d_lam = np.array([])
+
         for i in range(arm_n):
             self.ax_s[0].plot(self.spec.arm_wave[i], self.spec.resol[i], label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
             self.ax_s[0].get_xaxis().set_visible(False)
@@ -432,7 +435,9 @@ class CCD(object):
                     self.ax_s[1].text(t, test_sampl, '%2.3e' % test_sampl)
                     self.ax_s[2].text(t, test_fwhm, '%2.3e' % test_fwhm)
                     
-                    self.spec.d_lam = test_sampl * au.nm/au.pixel
+                    self.spec.d_lam = np.append(self.spec.d_lam, test_sampl)
+                    
+        self.spec.d_lam *= au.nm/au.pixel
 
 
 
@@ -588,7 +593,10 @@ class CCD(object):
             err_extr = err_extr / dw
 
             from scipy.signal import savgol_filter
-            err_savgol = savgol_filter(err_extr, len(wave_extr)//len(wave_snr)//2*4+1, 3)
+            try:
+                err_savgol = savgol_filter(err_extr, len(wave_extr)//len(wave_snr)//2*4+1, np.min(3, len(wave_extr)//len(wave_snr)//2*4+1))
+            except:
+                err_savgol = err_extr
 
             snr_extr = flux_extr/err_savgol
             snr_extr[np.where(np.isnan(snr_extr))] = 0
@@ -1432,23 +1440,22 @@ class Spec(object):
     
                     self.obj_f2 = np.append(self.obj_f2, test_arm_targ * 0.1 / (self.phot.area * texp).value)
                     self.obj_f3 = np.append(self.obj_f3, test_arm_targ * 0.1)
-                    self.obj_f4 = np.append(self.obj_f4, test_arm_targ * self.d_lam.value)
+                    self.obj_f4 = np.append(self.obj_f4, test_arm_targ * self.d_lam[i].value)
                     
                     self.sky_f2 = np.append(self.sky_f2, test_arm_bckg * 0.1 \
                                   / (self.phot.area * texp).value * (slice_n * slice_width * seeing * extr_fwhm_num).value)
                     sky_f3 = test_arm_bckg * (slice_n * slice_width * seeing * extr_fwhm_num).value
                     self.sky_f3 = np.append(self.sky_f3, sky_f3 * 0.1)
-                    self.sky_f4 = np.append(self.sky_f4, sky_f3 * self.d_lam.value)
+                    self.sky_f4 = np.append(self.sky_f4, sky_f3 * self.d_lam[i].value)
                     
-                    #print(test_wave, self.d_lam.value)
                     if arm_n > 1:
-                        sel = np.where(np.logical_and(self.wave_extr[a,:]>t-self.d_lam.value*0.5,
-                                                      self.wave_extr[a,:]<t+self.d_lam.value*0.5))
+                        sel = np.where(np.logical_and(self.wave_extr[a,:]>t-self.d_lam[i].value*0.5,
+                                                      self.wave_extr[a,:]<t+self.d_lam[i].value*0.5))
                         self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[a,:][sel]**2))
                         self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[a,:][sel]**2))
                     else:
-                        sel = np.where(np.logical_and(self.wave_extr[:]>t-self.d_lam.value*0.5,
-                                                      self.wave_extr[:]<t+self.d_lam.value*0.5))
+                        sel = np.where(np.logical_and(self.wave_extr[:]>t-self.d_lam[i].value*0.5,
+                                                      self.wave_extr[:]<t+self.d_lam[i].value*0.5))
                         self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[:][sel]**2))
                         self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[:][sel]**2))
                 
@@ -1483,24 +1490,47 @@ class Spec(object):
         
         fig_noise, self.ax_noise = plt.subplots(figsize=(10,5))
         self.ax_noise.set_title("Squared-noise spectrum")
-        for a in range(arm_n):
-            if arm_n > 1:
-                tot_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])[0]
-                line0, = self.ax_noise.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff \
-                     * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]), c='C0')
-                line1, = self.ax_noise.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff \
-                     * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
-                     * slice_n * slice_width * seeing * extr_fwhm_num, c='C1')
+        
+        self.snr_theor = np.array([])
 
+        for a in range(arm_n):
+            tot_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])[0]
+            targ_theor = self.arm_targ[a] * tot_eff \
+                             * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a])
+            bckg_theor = self.arm_bckg[a] * tot_eff \
+                             * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
+                             * (slice_n * slice_width * seeing * extr_fwhm_num).value
+            line0, = self.ax_noise.plot(self.arm_wave[a], targ_theor, c='C0')
+            line1, = self.ax_noise.plot(self.arm_wave[a], bckg_theor, c='C1')
+
+            if arm_n > 1:
+                err_dark_theor = self.err_dark_extr[a,0]
+                err_ron_theor = self.err_ron_extr[a,0]
+                snr_theor = targ_theor/np.sqrt(targ_theor+bckg_theor+err_dark_theor**2+err_ron_theor**2)
+                line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
+            
                 line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
                 line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='C1', alpha=0.1)
                 line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:]**2, s=2, c='C3')
+                snr_extr = self.err_targ_extr[a,:]**2/np.sqrt(self.err_targ_extr[a,:]**2+self.err_bckg_extr[a,:]**2\
+                                                              +self.err_dark_extr[a,:]**2+self.err_ron_extr[a,:]**2)
+                line_extr = self.ax_noise.scatter(self.wave_extr[a,:], snr_extr, s=2, c='grey', alpha=0.1)
+
             else:
+                err_dark_theor = self.err_dark_extr[0]
+                err_ron_theor = self.err_ron_extr[0]
+                snr_theor = targ_theor/np.sqrt(targ_theor+bckg_theor+err_dark_theor**2+err_ron_theor**2)
+                line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
+
                 line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:]**2, s=2, c='C0', alpha=0.1)
                 line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:]**2, s=2, c='C1', alpha=0.1)
                 line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:]**2, s=2, c='C3')
+                snr_extr = self.err_targ_extr[:]**2/np.sqrt(self.err_targ_extr[:]**2+self.err_bckg_extr[:]**2\
+                                                            +self.err_dark_extr[:]**2+self.err_ron_extr[:]**2)
+                line_extr = self.ax_noise.scatter(self.wave_extr[:], snr_extr, s=2, c='grey', alpha=0.1)
+
             
             if arm_n > 1:
                 self.dc = self.err_dark_extr[0,0]**2
@@ -1510,9 +1540,9 @@ class Spec(object):
                 self.ron2 = self.err_ron_extr[0]**2
 
                 
-
             for t in test_wave: 
                 if t > np.min(self.arm_wave[a]) and t < np.max(self.arm_wave[a]):
+                    """
                     test_arm_targ = np.interp(t, self.arm_wave[a], self.arm_targ[a] * tot_eff \
                                               * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]))
                     self.ax_noise.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
@@ -1520,7 +1550,16 @@ class Spec(object):
                                               * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
                                               * slice_n * slice_width.value * seeing.value * extr_fwhm_num)
                     self.ax_noise.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
-            
+                    """
+                    test_arm_targ = np.interp(t, self.arm_wave[a], targ_theor)
+                    self.ax_noise.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
+                    test_arm_bckg = np.interp(t, self.arm_wave[a], bckg_theor)
+                    self.ax_noise.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
+                    test_arm_snr = np.interp(t, self.arm_wave[a], snr_theor)
+                    self.ax_noise.text(t, test_arm_snr, '%2.3e' % test_arm_snr)
+                    self.snr_theor = np.append(self.snr_theor, test_arm_snr)
+                    
+
                 
         line2.set_label('Target')
         line3.set_label('Background')
@@ -1545,10 +1584,10 @@ class Spec(object):
         self.ax_snr.set_title("SNR")
         linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
         linet.set_label('SNR')
-        self.test_snr = np.array([])
+        self.snr_extr = np.array([])
         for t in test_wave:
             test_snr = np.interp(t, self.wave_snr, self.snr)
-            self.test_snr = np.append(self.test_snr, test_snr)
+            self.snr_extr = np.append(self.snr_extr, test_snr)
             self.ax_snr.text(t, test_snr, '%2.1f' % test_snr)
         """
         self.ax_snr.text(0.99, 0.92,
@@ -1750,9 +1789,10 @@ class Spec(object):
             print("    - integrated, on CCD (SKY F4):    %2.3e %s" % (self.sky_f4.value, self.sky_f4.unit))
             print("    - extracted, on CCD  (SKY F5):    %2.3e %s" % (self.sky_f5.value, self.sky_f5.unit))
             print("")
-            print(" - Dark current: %2.2e " % self.dc)
-            print(" - Squared RON:  %2.2e " % self.ron2)
-            print(" - SNR:          %2.2e " % self.test_snr)
+            print(" - Dark current:     %2.2e " % self.dc)
+            print(" - Squared RON:      %2.2e " % self.ron2)
+            print(" - SNR (integrated): %2.2e " % self.snr_theor)
+            print(" - SNR (extracted):  %2.2e " % self.snr_extr)
 
         else:
             with np.printoptions(precision=3, floatmode='fixed'):
@@ -1766,7 +1806,7 @@ class Spec(object):
                 print(" - Exposure time:    %2.3e %s" % (texp.value, texp.unit))
                 print(" - Telescope area:   %2.5e %s" % (self.phot.area.value, self.phot.area.unit))
                 self.pprint(" - Test wavelength: ", self.test_wave)
-                print(" - Sampling (d-lam): %2.3e %s" % (self.d_lam.value, self.d_lam.unit))
+                self.pprint(" - Sampling (d-lam):", self.d_lam)
                 print("")
                 print(" - Target flux:")
                 self.pprint("    - density, raw       (OBJ F0):   ", self.obj_f0)
@@ -1782,9 +1822,10 @@ class Spec(object):
                 self.pprint("    - integrated, on CCD (SKY F4):   ", self.sky_f4)
                 self.pprint("    - extracted, on CCD  (SKY F5):   ", self.sky_f5)
                 print("")
-                print(" - Dark current: %2.2e " % self.dc)
-                print(" - Squared RON:  %2.2e " % self.ron2)
-                self.pprint(" - SNR:         ", self.test_snr, "%2.2e")
+                print(" - Dark current: %2.2e     " % self.dc)
+                print(" - Squared RON:  %2.2e     " % self.ron2)
+                self.pprint(" - SNR (integrated):", self.snr_theor)
+                self.pprint(" - SNR (extracted): ", self.snr_extr, "%2.2e")
 
     def pprint(self, head, array, prec="%2.3e"):
         print(head, "[", end="")
