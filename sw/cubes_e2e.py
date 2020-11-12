@@ -210,6 +210,8 @@ class CCD(object):
             self.sl_hlength = xlength // 2
             self.psf_xlength = int(np.ceil(self.psf.seeing/self.spat_scale
                                            /self.pix_xsize))
+            #print(self.psf.seeing, self.spat_scale, self.pix_xsize, self.pix_ysize)
+            #print(self.psf_xlength)
             xspan = xlength + int(slice_gap.value/self.xbin)
             xshift = (slice_n*xspan+xlength)//2
             self.add_slices(int(x), xshift, xspan, self.psf_xlength,
@@ -655,6 +657,7 @@ class CCD(object):
         n_targ = np.sqrt(np.sum(dysel_targ**2))
         n_bckg = np.sqrt(np.sum(dysel_bckg**2))
         pix = len(ysel)
+        
         n_dark = np.sqrt(pix)*self.dark
         n_ron = np.sqrt(pix)*self.ron
 
@@ -1883,7 +1886,8 @@ class Sim():
 
     def ccd_create(self):            
         self.check(True, 'phot', 'spec', 'psf')
-        self._ccd = CCD(self._psf, self._spec, xsize=ccd_xsize, ysize=ccd_ysize, xbin=ccd_xbin, ybin=ccd_ybin, func=extr_func)
+        self._ccd = CCD(self._psf, self._spec, xsize=ccd_xsize, ysize=ccd_ysize, pix_xsize=pix_xsize, pix_ysize=pix_ysize,
+                        xbin=ccd_xbin, ybin=ccd_ybin, func=extr_func)
         self._ccd.add_arms(n=arm_n, wave_d=wave_d, wave_d_shift=wave_d_shift)
 
         
