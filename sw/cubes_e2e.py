@@ -1837,12 +1837,12 @@ class Spec(object):
         for a in range(arm_n):
             if arm_n > 1:
                 wave_final = np.append(wave_final, self.wave_extr[a, :])
-                flux_final = np.append(flux_final, self.flux_extr[a, :])
+                flux_final = np.append(flux_final, self.flux_extr[a, :].value)
                 err_final = np.append(err_final, self.err_extr[a, :])
             else:
-                wave_final = np.append(wave_final, self.wave_extr[a, :])
-                flux_final = np.append(flux_final, self.flux_extr[a, :])
-                err_final = np.append(err_final, self.err_extr[a, :])
+                wave_final = np.append(wave_final, self.wave_extr[:])
+                flux_final = np.append(flux_final, self.flux_extr[:].value)
+                err_final = np.append(err_final, self.err_extr[:])
         t = Table([wave_final, flux_final, err_final], names=('wave', 'flux', 'err'))
         file_split = self.file.split('.')
         file_split[-2] = file_split[-2]+'_extracted'
