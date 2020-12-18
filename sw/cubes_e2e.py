@@ -342,6 +342,7 @@ class CCD(object):
             self.mod_init.append(
                 Gaussian1D(amplitude=sl_msignal, mean=c, stddev=psf_xlength))
             self.sl_cen.append(c)
+        #print(self.sl_cen, np.median(self.sl_cen))
         #print(self.targ_sum)
         #plt.show()   
 
@@ -433,7 +434,7 @@ class CCD(object):
                     test_sampl = cspline(spl_wave, spl_sampl*ccd_ybin)(t)
                     test_fwhm = np.interp(t, self.spec.arm_wave[i], self.spec.fwhm[i])
     
-                    self.ax_s[0].text(t, test_resol, '%2.3e' % test_sampl)
+                    self.ax_s[0].text(t, test_resol, '%2.3e' % test_resol)
                     self.ax_s[1].text(t, test_sampl, '%2.3e' % test_sampl)
                     self.ax_s[2].text(t, test_fwhm, '%2.3e' % test_fwhm)
                     
@@ -1503,36 +1504,36 @@ class Spec(object):
             bckg_theor = self.arm_bckg[a] * tot_eff \
                              * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
                              * (slice_n * slice_width * seeing * extr_fwhm_num).value
-            line0, = self.ax_noise.plot(self.arm_wave[a], targ_theor, c='C0')
+            #line0, = self.ax_noise.plot(self.arm_wave[a], targ_theor, c='C0')
             line1, = self.ax_noise.plot(self.arm_wave[a], bckg_theor, c='C1')
 
             if arm_n > 1:
                 err_dark_theor = self.err_dark_extr[a,0]
                 err_ron_theor = self.err_ron_extr[a,0]
                 snr_theor = targ_theor/np.sqrt(targ_theor+bckg_theor+err_dark_theor**2+err_ron_theor**2)
-                line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
+                #line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
             
-                line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
+                #line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
                 line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='C1', alpha=0.1)
                 line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:]**2, s=2, c='C3')
-                snr_extr = self.err_targ_extr[a,:]**2/np.sqrt(self.err_targ_extr[a,:]**2+self.err_bckg_extr[a,:]**2\
-                                                              +self.err_dark_extr[a,:]**2+self.err_ron_extr[a,:]**2)
-                line_extr = self.ax_noise.scatter(self.wave_extr[a,:], snr_extr, s=2, c='grey', alpha=0.1)
+                #snr_extr = self.err_targ_extr[a,:]**2/np.sqrt(self.err_targ_extr[a,:]**2+self.err_bckg_extr[a,:]**2\
+                #                                             +self.err_dark_extr[a,:]**2+self.err_ron_extr[a,:]**2)
+                #line_extr = self.ax_noise.scatter(self.wave_extr[a,:], snr_extr, s=2, c='grey', alpha=0.1)
 
             else:
                 err_dark_theor = self.err_dark_extr[0]
                 err_ron_theor = self.err_ron_extr[0]
                 snr_theor = targ_theor/np.sqrt(targ_theor+bckg_theor+err_dark_theor**2+err_ron_theor**2)
-                line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
+                #line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
 
-                line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:]**2, s=2, c='C0', alpha=0.1)
+                #line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:]**2, s=2, c='C0', alpha=0.1)
                 line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:]**2, s=2, c='C1', alpha=0.1)
                 line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:]**2, s=2, c='C3')
-                snr_extr = self.err_targ_extr[:]**2/np.sqrt(self.err_targ_extr[:]**2+self.err_bckg_extr[:]**2\
-                                                            +self.err_dark_extr[:]**2+self.err_ron_extr[:]**2)
-                line_extr = self.ax_noise.scatter(self.wave_extr[:], snr_extr, s=2, c='grey', alpha=0.1)
+                #snr_extr = self.err_targ_extr[:]**2/np.sqrt(self.err_targ_extr[:]**2+self.err_bckg_extr[:]**2\
+                #                                            +self.err_dark_extr[:]**2+self.err_ron_extr[:]**2)
+                #line_extr = self.ax_noise.scatter(self.wave_extr[:], snr_extr, s=2, c='grey', alpha=0.1)
 
             
             if arm_n > 1:
@@ -1555,11 +1556,11 @@ class Spec(object):
                     self.ax_noise.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
                     """
                     test_arm_targ = np.interp(t, self.arm_wave[a], targ_theor)
-                    self.ax_noise.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
+                    #self.ax_noise.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
                     test_arm_bckg = np.interp(t, self.arm_wave[a], bckg_theor)
                     self.ax_noise.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
                     test_arm_snr = np.interp(t, self.arm_wave[a], snr_theor)
-                    self.ax_noise.text(t, test_arm_snr, '%2.3e' % test_arm_snr)
+                    #self.ax_noise.text(t, test_arm_snr, '%2.3e' % test_arm_snr)
                     self.snr_theor = np.append(self.snr_theor, test_arm_snr)
                     
 
@@ -1763,7 +1764,7 @@ class Spec(object):
     
     def summary(self):
         print("")
-        print("Summary (to compare with MGE's reference values):")
+        print("Summary:")
         print("")
         if len(self.atm_eff) == 1:
             print(" - Atmosphere efficiency:             %2.3f" % self.atm_eff)
@@ -1829,6 +1830,25 @@ class Spec(object):
                 print(" - Squared RON:  %2.2e     " % self.ron2)
                 self.pprint(" - SNR (integrated):", self.snr_theor)
                 self.pprint(" - SNR (extracted): ", self.snr_extr, "%2.2e")
+         
+        wave_final = np.array([])
+        flux_final = np.array([])
+        err_final = np.array([])
+        for a in range(arm_n):
+            if arm_n > 1:
+                wave_final = np.append(wave_final, self.wave_extr[a, :])
+                flux_final = np.append(flux_final, self.flux_extr[a, :])
+                err_final = np.append(err_final, self.err_extr[a, :])
+            else:
+                wave_final = np.append(wave_final, self.wave_extr[a, :])
+                flux_final = np.append(flux_final, self.flux_extr[a, :])
+                err_final = np.append(err_final, self.err_extr[a, :])
+        t = Table([wave_final, flux_final, err_final], names=('wave', 'flux', 'err'))
+        file_split = self.file.split('.')
+        file_split[-2] = file_split[-2]+'_extracted'
+        file_join = '.'.join(file_split)
+        t.write(file_join, format='ascii.commented_header', overwrite=True)
+        
 
     def pprint(self, head, array, prec="%2.3e"):
         print(head, "[", end="")
