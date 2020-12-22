@@ -261,8 +261,8 @@ class CCD(object):
         self.targ_noise_max = self.targ_noise_max * au.ph/au.pixel
         self.bckg_noise_med = self.bckg_noise_med * au.ph/au.pixel
         
-        print(self.signal)
-        print(self.signal.shape)
+        #print(self.signal)
+        #print(self.signal.shape)
 
         
     def add_slice(self, trace, trace_targ, trace_bckg, xcen, wmin, wmax, wmin_d, wmax_d):
