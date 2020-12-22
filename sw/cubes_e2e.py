@@ -94,6 +94,8 @@ class CCD(object):
 
         self.dark = np.sqrt((ccd_dark*ccd_gain*self.npix*self.spec.phot.texp)\
                             .to(au.photon).value)
+        #print(self.dark)
+        #print(self.dark.shape)
         self.ron = (ccd_ron*ccd_gain).value
 
         if arm_n > 1:
@@ -258,6 +260,9 @@ class CCD(object):
         
         self.targ_noise_max = self.targ_noise_max * au.ph/au.pixel
         self.bckg_noise_med = self.bckg_noise_med * au.ph/au.pixel
+        
+        print(self.signal)
+        print(self.signal.shape)
 
         
     def add_slice(self, trace, trace_targ, trace_bckg, xcen, wmin, wmax, wmin_d, wmax_d):
@@ -1574,6 +1579,7 @@ class Spec(object):
         self.ax_noise.set_ylabel('Flux\n(ph/extracted pix)')
         self.ax_noise.set_yscale('log')
         
+        """
         fig_pix, self.ax_pix = plt.subplots(figsize=(10,5))
         self.ax_pix.set_title("Extraction spectrum")
         for a in range(arm_n):
@@ -1583,6 +1589,7 @@ class Spec(object):
                 line1 = self.ax_pix.scatter(self.wave_extr[:], self.pix_extr[:], s=2, c='red')
         self.ax_pix.set_xlabel('Wavelength')
         self.ax_pix.set_ylabel('(pix/extracted pix)')
+        """
         
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
         self.ax_snr.set_title("SNR")
@@ -1793,10 +1800,11 @@ class Spec(object):
             print("    - integrated, on CCD (SKY F4):    %2.3e %s" % (self.sky_f4.value, self.sky_f4.unit))
             print("    - extracted, on CCD  (SKY F5):    %2.3e %s" % (self.sky_f5.value, self.sky_f5.unit))
             print("")
-            print(" - Dark current:     %2.2e " % self.dc)
-            print(" - Squared RON:      %2.2e " % self.ron2)
-            print(" - SNR (integrated): %2.2e " % self.snr_theor)
-            print(" - SNR (extracted):  %2.2e " % self.snr_extr)
+            print(" - Pixels per extraction bin: %2.2e" % np.median(self.pix_extr))
+            print(" - Dark current:              %2.2e " % self.dc)
+            print(" - Squared RON:               %2.2e " % self.ron2)
+            print(" - SNR (integrated):          %2.2e " % self.snr_theor)
+            print(" - SNR (extracted):           %2.2e " % self.snr_extr)
 
         else:
             with np.printoptions(precision=3, floatmode='fixed'):
