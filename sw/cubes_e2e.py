@@ -417,7 +417,7 @@ class CCD(object):
 
 
             self.ax_s[1].get_xaxis().set_visible(False)
-            self.ax_s[1].set_ylabel('Sampling (%s/%s)' % (au.nm, au.pixel))
+            self.ax_s[1].set_ylabel('Linear dispersion (%s/%s)' % (au.nm, au.pixel))
             self.ax_s[2].plot(self.spec.arm_wave[i], self.spec.fwhm[i], label='Arm %i' % i, color='C0', alpha=1-i/arm_n)
             
             """
@@ -429,7 +429,7 @@ class CCD(object):
 
 
             self.ax_s[2].set_xlabel('Wavelength (%s)' % au.nm)
-            self.ax_s[2].set_ylabel('FWHM (%s)' % au.pixel)
+            self.ax_s[2].set_ylabel('Sampling (%s)' % au.pixel)
             
             test_wave = np.ravel([test_wave])
 
