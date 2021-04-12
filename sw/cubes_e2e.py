@@ -1293,6 +1293,14 @@ class Spec(object):
             fluxf = getattr(self, igm_abs+'_abs')(wavef, fluxf)
         #print(np.min(data['col1']), np.median(data['col1']), np.max(data['col1']))
 
+        """ 
+        # To save the input spectrum, redshifted and absorbed
+        waves = wavef.to(au.Angstrom)
+        fluxs = fluxf.value
+        t = Table([waves, fluxs], names=['wave','flux'])
+        t.write('input_spectrum.dat', format='ascii.no_header', formats={'wave': '%2.4f', 'flux': '%2.12e'}, 
+                overwrite=True)  
+        """
                         
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
