@@ -574,7 +574,7 @@ class CCD(object):
                                       self.sl_cen[i]+self.sl_hlength, a]
                     s_extr[p], n_extr[p], (n_targ_extr[p], n_bckg_extr[p], n_dark_extr[p], n_ron_extr[p], p_extr[p]) \
                         = getattr(self, 'extr_'+self.func)(y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
-                    
+                
                 flux_extr += s_extr
                 err_extr = np.sqrt(err_extr**2 + n_extr**2)
                 err_targ_extr = np.sqrt(err_targ_extr**2 + n_targ_extr**2)
@@ -602,7 +602,8 @@ class CCD(object):
 
             from scipy.signal import savgol_filter
             try:
-                err_savgol = savgol_filter(err_extr, len(wave_extr)//len(wave_snr)//2*4+1, np.min(3, len(wave_extr)//len(wave_snr)//2*4+1))
+                #print(len(wave_extr)//len(wave_snr)//2*4+1)
+                err_savgol = savgol_filter(err_extr, len(wave_extr)//len(wave_snr)//2*4+1, 3)
             except:
                 err_savgol = err_extr
 
@@ -648,6 +649,8 @@ class CCD(object):
                                               * (self.wmaxs.value-self.wmins.value)
             
         self.spec.flux_final_tot = self.spec.flux_final_tot * au.ph
+        
+        np.save('snr.npy', np.vstack((self.spec.wave_snr, self.spec.snr)))
 
         
     def extr_sum(self, y, dy, dy_targ, **kwargs):
@@ -1487,7 +1490,6 @@ class Spec(object):
         self.sky_f4 = self.sky_f4 * (au.ph/au.Angstrom * (self.d_lam)).to(au.ph/au.pixel).unit
         self.sky_f5 = self.sky_f5 * au.ph/ au.pixel
 
-
         
         line0.set_label('On detector')            
         line1.set_label('On detector (error)')            
@@ -1496,6 +1498,63 @@ class Spec(object):
 
         self.ax.legend(loc=2, fontsize=8)
         #self.ax.set_yscale('log')
+        
+        """
+        fig_2, self.ax_2 = plt.subplots(figsize=(10,5))
+        for a in range(arm_n):
+            tot_eff, instr_eff, tel_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])
+            #line0, = self.ax_2.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='C0')
+            #line1, = self.ax_2.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='C1')
+
+      
+            for i, t in enumerate(test_wave):
+                if t > np.min(self.arm_wave[a]) and t < np.max(self.arm_wave[a]):
+    
+                    test_arm_targ = np.interp(t, self.arm_wave[a], self.arm_targ[a] * tot_eff)
+                    #self.ax.text(t, test_arm_targ, '%2.3e' % test_arm_targ)
+                    test_arm_bckg = np.interp(t, self.arm_wave[a], self.arm_bckg[a] * tot_eff)
+                    #self.ax.text(t, test_arm_bckg, '%2.3e' % test_arm_bckg)
+    
+                    
+                    self.instr_eff = np.append(self.instr_eff, np.interp(t, self.arm_wave[a], instr_eff))
+                    self.tel_eff = np.append(self.tel_eff, np.interp(t, self.arm_wave[a], tel_eff))           
+                    self.sky_eff = np.append(self.sky_eff, np.interp(t, self.arm_wave[a], tot_eff))
+                    self.obj_eff = np.append(self.obj_eff, self.atm_eff[i]*self.slit_eff*np.interp(t, self.arm_wave[a], tot_eff))
+    
+                    self.obj_f2 = np.append(self.obj_f2, test_arm_targ * 0.1 / (self.phot.area * texp).value)
+                    self.obj_f3 = np.append(self.obj_f3, test_arm_targ * 0.1)
+                    self.obj_f4 = np.append(self.obj_f4, test_arm_targ * self.d_lam[i].value)
+                    
+                    self.sky_f2 = np.append(self.sky_f2, test_arm_bckg * 0.1 \
+                                  / (self.phot.area * texp).value * (slice_n * slice_width * seeing * extr_fwhm_num).value)
+                    sky_f3 = test_arm_bckg * (slice_n * slice_width * seeing * extr_fwhm_num).value
+                    self.sky_f3 = np.append(self.sky_f3, sky_f3 * 0.1)
+                    self.sky_f4 = np.append(self.sky_f4, sky_f3 * self.d_lam[i].value)
+                    
+                    if arm_n > 1:
+                        sel = np.where(np.logical_and(self.wave_extr[a,:]>t-self.d_lam[i].value*0.5,
+                                                      self.wave_extr[a,:]<t+self.d_lam[i].value*0.5))
+                        self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[a,:][sel]**2))
+                        self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[a,:][sel]**2))
+                    else:
+                        sel = np.where(np.logical_and(self.wave_extr[:]>t-self.d_lam[i].value*0.5,
+                                                      self.wave_extr[:]<t+self.d_lam[i].value*0.5))
+                        self.obj_f5 = np.append(self.obj_f5, np.mean(self.err_targ_extr[:][sel]**2))
+                        self.sky_f5 = np.append(self.sky_f5, np.mean(self.err_bckg_extr[:][sel]**2))
+                
+
+            if arm_n > 1:
+                line2 = self.ax_2.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0', alpha=0.4)
+                line3 = self.ax_2.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='C1', alpha=0.4)
+            else:
+                line2 = self.ax_2.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.4)
+                line3 = self.ax_2.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='C1', alpha=0.4)
+
+        self.ax_2.set_xlabel('Wavelength')
+        self.ax_2.set_ylabel('Flux density\n(ph/extracted pix)')
+        """
+
+        
         
         fig_noise, self.ax_noise = plt.subplots(figsize=(10,5))
         self.ax_noise.set_title("Squared-noise spectrum")
@@ -1540,7 +1599,7 @@ class Spec(object):
                 #                                            +self.err_dark_extr[:]**2+self.err_ron_extr[:]**2)
                 #line_extr = self.ax_noise.scatter(self.wave_extr[:], snr_extr, s=2, c='grey', alpha=0.1)
 
-            
+
             if arm_n > 1:
                 self.dc = self.err_dark_extr[0,0]**2
                 self.ron2 = self.err_ron_extr[0,0]**2
