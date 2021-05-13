@@ -88,6 +88,7 @@ class CCD(object):
     def add_arms(self, n, wave_d, wave_d_shift):
         self.xcens = [self.xsize.value//2]*n
         
+        self.signal_pure = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.targ_noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
@@ -215,7 +216,9 @@ class CCD(object):
             #print(self.psf.seeing, self.spat_scale, self.pix_xsize, self.pix_ysize)
             #print(self.psf_xlength)
             xspan = xlength + int(slice_gap.value/self.xbin)
-            xshift = (slice_n*xspan+xlength)//2
+            #xshift = (slice_n*xspan+xlength)//2
+            xshift = (slice_n*xspan+170)
+
             self.add_slices(int(x), xshift, xspan, self.psf_xlength,
                             wmin=m.value, wmax=M.value, wmin_d=m_d.value,
                             wmax_d=M_d.value)
@@ -327,6 +330,7 @@ class CCD(object):
         bckg_noise = np.random.normal(0., 1., sl_bckg_prof.shape)*np.sqrt(np.abs(sl_bckg_prof))
         dsignal = targ_noise+bckg_noise
         noise = np.sqrt(targ_noise**2 + bckg_noise**2 + self.dark**2 + self.ron**2)
+        self.signal_pure[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
         self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = np.round(signal+dsignal)
         self.noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = noise
         self.targ_noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = targ_noise
@@ -447,7 +451,7 @@ class CCD(object):
                     
         self.spec.d_lam *= au.nm/au.pixel
 
-
+        #print(self.spec.d_lam)
 
         self.ax_s[2].axhline(2.0, linestyle=':')
         self.ax_s[2].text(np.min(self.spec.arm_wave[0]), 2.0, "Nyquist limit", ha='left', va='bottom')
@@ -525,6 +529,13 @@ class CCD(object):
             cax.set_xlabel(au.ph)
             fig.colorbar(im, cax=cax, orientation='vertical')
             
+        np.save('ccd_blue.npy', self.signal[:,:,0])
+        np.save('ccd_blue_pure.npy', self.signal_pure[:,:,0])
+        np.save('ccd_red.npy', self.signal[:,:,1])
+        np.save('ccd_red_pure.npy', self.signal_pure[:,:,1])
+
+
+            
             
             
     def extr_arms(self, n, slice_n):
@@ -576,6 +587,11 @@ class CCD(object):
                         = getattr(self, 'extr_'+self.func)(y, dy=dy, dy_targ=dy_targ, mod=self.mod_init[i], x=x, p=p)
                 
                 flux_extr += s_extr
+                if a == 0: 
+                    np.save('flux_blue_extr_s%i.npy' % s, s_extr)
+                if a == 1: 
+                    np.save('flux_red_extr_s%i.npy' % s, s_extr)
+
                 err_extr = np.sqrt(err_extr**2 + n_extr**2)
                 err_targ_extr = np.sqrt(err_targ_extr**2 + n_targ_extr**2)
                 err_bckg_extr = np.sqrt(err_bckg_extr**2 + n_bckg_extr**2)
@@ -597,6 +613,7 @@ class CCD(object):
             dw = (wave_extr[2:]-wave_extr[:-2])*0.5
             dw = np.append(dw[:1], dw)
             dw = np.append(dw, dw[-1:])
+            #print(dw)
             flux_extr = flux_extr / dw
             err_extr = err_extr / dw
 
@@ -728,14 +745,18 @@ class CCD(object):
         dch_shape = expit(fact*(wave-wmin_d))*expit(fact*(wmax_d-wave))
         i = self.arm_counter
         #print(arm_counter, arm_n)
+       
+        suff = ''
+        if goal_eff:
+            suff = '_GOAL'
         try:
-            eff = ascii.read('../database/EFF_%sARM' % str(arm_n))
+            eff = ascii.read('../database/EFF_%sARM%s' % str(arm_n, suff))
         except:
             if arm_counter == 0:
                 arm_str = "1ST"
             if arm_counter == 1:
                 arm_str = "2ND"
-            eff = ascii.read('../database/EFF_%sARM_%sCH' % (str(arm_n), arm_str))
+            eff = ascii.read('../database/EFF_%sARM_%sCH%s' % (str(arm_n), arm_str, suff))
                              
         """
         eff_wave = np.array(eff['wavelength'])*0.1*au.nm
@@ -1293,14 +1314,14 @@ class Spec(object):
             fluxf = getattr(self, igm_abs+'_abs')(wavef, fluxf)
         #print(np.min(data['col1']), np.median(data['col1']), np.max(data['col1']))
 
-        """ 
+        #""" 
         # To save the input spectrum, redshifted and absorbed
         waves = wavef.to(au.Angstrom)
         fluxs = fluxf.value
         t = Table([waves, fluxs], names=['wave','flux'])
         t.write('input_spectrum.dat', format='ascii.no_header', formats={'wave': '%2.4f', 'flux': '%2.12e'}, 
                 overwrite=True)  
-        """
+        #"""
                         
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
@@ -1340,6 +1361,9 @@ class Spec(object):
         #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
         if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
         
+        
+        np.save('wave_in.npy', self.wave.value)
+        np.save('targ_in.npy', self.targ_ext.value)
         
         test_wave = np.ravel([test_wave])
 
@@ -1486,7 +1510,15 @@ class Spec(object):
             else:
                 line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.1)
                 line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='gray', alpha=0.1)
-                
+        
+        np.save('wave_blue_extr.npy', self.wave_extr[0,:])
+        np.save('flux_blue_extr.npy', self.flux_extr[0,:].value)
+        np.save('err_blue_extr.npy', self.err_extr[0,:])
+        np.save('wave_red_extr.npy', self.wave_extr[1,:])
+        np.save('flux_red_extr.npy', self.flux_extr[1,:].value)
+        np.save('err_red_extr.npy', self.err_extr[1,:])
+
+        
         
         self.obj_f2 = self.obj_f2 * au.ph/au.Angstrom / (self.phot.area * texp).unit
         self.obj_f3 = self.obj_f3 * au.ph/au.Angstrom

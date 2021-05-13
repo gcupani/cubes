@@ -40,8 +40,8 @@ flux_ref_Vega = {'U': 7561*au.photon/au.cm**2/au.s/au.nm,
                  'H': 933*au.photon/au.cm**2/au.s/au.nm,
                  'K': 436*au.photon/au.cm**2/au.s/au.nm}
 flux_ref_AB = {'U': 23174*au.photon/au.cm**2/au.s/au.nm,
-                'B': 20111*au.photon/au.cm**2/au.s/au.nm,
-                'V': 9955*au.photon/au.cm**2/au.s/au.nm}
+               'B': 20111*au.photon/au.cm**2/au.s/au.nm,
+               'V': 9955*au.photon/au.cm**2/au.s/au.nm}
 
 
 flux_ref_AB2 = {'U': 23174*au.photon/au.cm**2/au.s/au.nm,
@@ -64,9 +64,10 @@ flux_U = 7561 * au.photon / au.cm**2 / au.s / au.nm  # Flux density @ 360.0 nm, 
 flux_u = 15393 * au.photon / au.cm**2 / au.s / au.nm  # Flux density @ 356.0 nm, mag_u = 0 (AB)
 
 arm_n = 2  # Number of arms
+goal_eff = True
 
-def eff_read(file, col):
-    return np.array(ascii.read(jsp['advanced'][file])[col])
+#def eff_read(file, col):
+#    return np.array(ascii.read(jsp['advanced'][file])[col])
 
 ccd_xsize = int(jsp['advanced']['NXpix'])*au.pixel  # X size of the CCD
 ccd_ysize = int(jsp['advanced']['NYpix'])*au.pixel  # Y size of the CCD
@@ -106,7 +107,7 @@ targ_prof = None
 targ_invrad_params = {'r_eff': 20}
 targ_sersic_params = {'amplitude': 1, 'r_eff': 20, 'n': 4, 'x_0': 0, 'y_0': 0, 'ellip': 0.5, 'theta': 1}
 radius = 405.8792924011*au.cm  # Telescope equivalent radius
-area = radius**2 * np.pi  # Telescope area
+area = 487575.179*au.cm**2 #radius**2 * np.pi  # Telescope area
 texp = float(jsp['exposureTime'])*au.s  # Exposure time
 mag_syst = 'Vega'  # Magnitude system
 mag_band = 'V'  # Magnitude band
