@@ -3,6 +3,6 @@ channels:
   - conda-forge
 dependencies:
   - astropy
-  - matplotlib=3.2
+  - matplotlib=3.3.0
   - numpy
   - scipy
