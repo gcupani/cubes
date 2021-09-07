@@ -11,10 +11,10 @@ from astropy.io import ascii, fits
 from astropy.modeling.fitting import LevMarLSQFitter as lm
 from astropy.modeling.functional_models import Gaussian1D, Gaussian2D, Moffat2D, Sersic2D
 from astropy.table import Table
-import matplotlib
+#import matplotlib
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
-plt.rcParams.update({'font.size': 14})
+plt.rc(('xtick','ytick'), labelsize=13)
 from matplotlib import patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
@@ -32,7 +32,7 @@ class CCD(object):
     def __init__(self, psf, spec, xsize=ccd_xsize, ysize=ccd_ysize,
                  xbin=ccd_xbin, ybin=ccd_ybin,
                  pix_xsize=pix_xsize, pix_ysize=pix_ysize,
-                 spat_scale=spat_scale, slice_n=slice_n, func=extr_func):
+                 spat_scale=spat_scale, slice_n=slice_n, func=extr_func, lr=False):
         self.psf = psf
         self.spec = spec
         self.xsize = xsize/xbin
@@ -45,7 +45,6 @@ class CCD(object):
         self.spat_scale = spat_scale
 
         self.func = func
-        
         
         #disp = ascii.read('../database/DISPERSION')
         for a in range(arm_n):
@@ -77,6 +76,9 @@ class CCD(object):
                 self.disp_wave = np.vstack((self.disp_wave, wave))
                 self.disp_sampl = np.vstack((self.disp_sampl, sampl))
                 self.disp_resol = np.vstack((self.disp_resol, resol))
+        
+        if lr:
+            self.disp_resol = self.disp_resol/4
 
         self.disp_wave *= au.nm
         self.disp_sampl *= au.nm/au.pixel
@@ -88,7 +90,7 @@ class CCD(object):
     def add_arms(self, n, wave_d, wave_d_shift):
         self.xcens = [self.xsize.value//2]*n
         
-        self.signal_pure = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
+        #self.signal_pure = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.signal = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
         self.targ_noise = np.zeros((int(self.ysize.value), int(self.xsize.value), n))
@@ -307,6 +309,7 @@ class CCD(object):
         sl_trace_bckg = self.rebin(trace_bckg, self.sl_hlength*2)
         sl_targ = self.rebin(targ.value, self.ysize.value)
         sl_bckg = self.rebin(bckg.value, self.ysize.value)
+
         
         # Efficiency
         if wmin_d is not None and wmax_d is not None:
@@ -330,7 +333,7 @@ class CCD(object):
         bckg_noise = np.random.normal(0., 1., sl_bckg_prof.shape)*np.sqrt(np.abs(sl_bckg_prof))
         dsignal = targ_noise+bckg_noise
         noise = np.sqrt(targ_noise**2 + bckg_noise**2 + self.dark**2 + self.ron**2)
-        self.signal_pure[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
+        #self.signal_pure[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = signal
         self.signal[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = np.round(signal+dsignal)
         self.noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = noise
         self.targ_noise[:,xcen-self.sl_hlength:xcen+self.sl_hlength][:,:,self.arm_counter] = targ_noise
@@ -377,10 +380,10 @@ class CCD(object):
         p1[0][1].set_alpha(1/6)
         p2[0][0].set_alpha(1/3)
         p2[0][1].set_alpha(1/6)
-        self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0]], [sl_l[0]]+sl_l[1::2])
+        self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0]], [sl_l[0]]+sl_l[1::2], fontsize=12)
 
         fig_r, self.ax_r = plt.subplots(figsize=(5,5))
-        self.ax_r.set_title("Pixel size")
+        self.ax_r.set_title("Pixel size", fontsize=20)
         xsize = pix_xsize*ccd_xbin
         ysize = pix_ysize*ccd_ybin
         xreal = pix_xsize*ccd_xbin*spat_scale
@@ -404,7 +407,7 @@ class CCD(object):
 
         
         fig_s, self.ax_s = plt.subplots(3, 1, figsize=(10,10), sharex=True)
-        self.ax_s[0].set_title("Resolution and sampling")
+        self.ax_s[0].set_title("Resolution and sampling", fontsize=20)
             
         self.spec.d_lam = np.array([])
 
@@ -432,8 +435,8 @@ class CCD(object):
             """
 
 
-            self.ax_s[2].set_xlabel('Wavelength (%s)' % au.nm)
-            self.ax_s[2].set_ylabel('Sampling (%s)' % au.pixel)
+            self.ax_s[2].set_xlabel('Wavelength (%s)' % au.nm, fontsize=15)
+            self.ax_s[2].set_ylabel('Sampling (%s)' % au.pixel, fontsize=15)
             
             test_wave = np.ravel([test_wave])
 
@@ -454,12 +457,12 @@ class CCD(object):
         #print(self.spec.d_lam)
 
         self.ax_s[2].axhline(2.0, linestyle=':')
-        self.ax_s[2].text(np.min(self.spec.arm_wave[0]), 2.0, "Nyquist limit", ha='left', va='bottom')
-        self.ax_s[2].legend()
+        self.ax_s[2].text(np.min(self.spec.arm_wave[0]), 2.0, "Nyquist limit", ha='left', va='bottom', fontsize=15)
+        self.ax_s[2].legend(fontsize=12)
         fig_s.subplots_adjust(hspace=0)
         
         fig_e, self.ax_e = plt.subplots(figsize=(10,7))
-        self.ax_e.set_title("Efficiency")
+        self.ax_e.set_title("Efficiency", fontsize=20)
         for i in range(0,arm_n*slice_n,slice_n):  # Only one slice per arm is plotted, as they are the same efficiency-wise
             self.ax_e.plot(self.eff_wave[i], self.eff_fib[i], label='Fiber' if i==0 else '', color='C0', linestyle=':')
             self.ax_e.plot(self.eff_wave[i], self.eff_adc[i], label='ADC' if i==0 else '', color='C1', linestyle=':')
@@ -497,24 +500,24 @@ class CCD(object):
                     self.ax_e.text(t, test_eff_tot_ext, '%2.4f' % test_eff_tot_ext) 
                     self.ax_e.text(t, test_eff_tot_ext_slit, '%2.4f' % test_eff_tot_ext_slit, va='top') 
             
-            self.ax_e.set_xlabel('Wavelength (%s)' % au.nm)
-            self.ax_e.set_ylabel('Fractional throughput')
-        #self.ax_e.legend()
+            self.ax_e.set_xlabel('Wavelength (%s)' % au.nm, fontsize=15)
+            self.ax_e.set_ylabel('Fractional throughput', fontsize=15)
+        #self.ax_e.legend(fontsize=12)
 
         
         
 
         fig_b, self.ax_b = plt.subplots(figsize=(7,7))
-        self.ax_b.set_title("Noise breakdown")
+        self.ax_b.set_title("Noise breakdown", fontsize=20)
         x = np.arange(arm_n)
         self.ax_b.bar(x-0.3, self.targ_noise_max.value, width=0.2, label='Target (maximum)')
         self.ax_b.bar(x-0.1, self.bckg_noise_med.value, width=0.2, label='Background (median)')
         self.ax_b.bar(x+0.1, self.dark, width=0.2, label='Dark')
         self.ax_b.bar(x+0.3, self.ron, width=0.2, label='Read-out')
-        self.ax_b.set_xlabel('Arm')
-        self.ax_b.set_ylabel('Noise (%s)' % self.targ_noise_max.unit)
+        self.ax_b.set_xlabel('Arm', fontsize=15)
+        self.ax_b.set_ylabel('Noise (%s)' % self.targ_noise_max.unit, fontsize=15)
         self.ax_b.set_xticks(range(arm_n))
-        self.ax_b.legend()
+        self.ax_b.legend(fontsize=12)
         for i in range(arm_n):
             fig, self.ax = plt.subplots(figsize=(8,8))
             divider = make_axes_locatable(self.ax)
@@ -522,21 +525,24 @@ class CCD(object):
                         
             im = self.ax.imshow(self.signal[:,:,i], vmin=0)
                         
-            self.ax.set_title('CCD')
-            self.ax.set_xlabel('X')
-            self.ax.set_ylabel('Y')
+            self.ax.set_title('CCD', fontsize=20)
+            self.ax.set_xlabel('X', fontsize=15)
+            self.ax.set_ylabel('Y', fontsize=15)
             cax.xaxis.set_label_position('top')
-            cax.set_xlabel(au.ph)
+            cax.set_xlabel(au.ph, fontsize=15)
             fig.colorbar(im, cax=cax, orientation='vertical')
             
         np.save('ccd_blue.npy', self.signal[:,:,0])
-        np.save('ccd_blue_pure.npy', self.signal_pure[:,:,0])
+        #np.save('ccd_blue_pure.npy', self.signal_pure[:,:,0])
         np.save('ccd_red.npy', self.signal[:,:,1])
-        np.save('ccd_red_pure.npy', self.signal_pure[:,:,1])
+        #np.save('ccd_red_pure.npy', self.signal_pure[:,:,1])
 
-
-            
-            
+        np.save('eff_wave_blue.npy', self.eff_wave[0])
+        np.save('eff_wave_red.npy', self.eff_wave[1])
+        np.save('eff_blue.npy', self.eff_tot[0]*np.interp(self.eff_wave[0], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses))
+        np.save('eff_red.npy', self.eff_tot[1]*np.interp(self.eff_wave[1], self.spec.wave.value, self.spec.atmo_ex)*(1-self.psf.losses))
+        
+        
             
     def extr_arms(self, n, slice_n):
         wave_snr = np.arange(self.wmins[0].value, self.wmaxs[-1].value, snr_sampl.value)
@@ -954,6 +960,7 @@ class PSF(object):
         x = np.linspace(-xsize.value/2, xsize.value/2, int(sampl.value))
         y = np.linspace(-ysize.value/2, ysize.value/2, int(sampl.value))
         self.x, self.y = np.meshgrid(x, y)
+        #print(self.x, self.y)
 
         getattr(self, func)()  # Apply the chosen function for the PSF
         prof_sel = np.ones(self.z.shape, dtype=bool)
@@ -1048,9 +1055,9 @@ class PSF(object):
                 self.fluxes = np.array([flux.value])
                 self.fluxes_targ = np.array([flux_targ.value])
                 self.fluxes_bckg = np.array([flux_bckg.value])
-                self.traces = [trace]
-                self.traces_targ = [trace_targ]
-                self.traces_bckg = [trace_bckg]
+                self.traces = [trace.value]
+                self.traces_targ = [trace_targ.value]
+                self.traces_bckg = [trace_bckg.value]
             else:
                 self.fluxes = np.append(self.fluxes, flux.value)
                 self.fluxes_targ = np.append(self.fluxes_targ, flux_targ.value)
@@ -1087,7 +1094,7 @@ class PSF(object):
             
     def draw(self):
         fig_p, self.ax_p = plt.subplots(figsize=(10,7))
-        self.ax_p.set_title("Photon balance (slit)")
+        self.ax_p.set_title("Photon balance (slit)", fontsize=20)
         #sl_v = np.array([self.spec.targ_tot.value, np.sum(self.targ_slice.value), 
         #                 np.sum(self.z_targ.value)-np.sum(self.targ_slice.value)])
         sl_v = np.array([np.sum(self.z_targ.value), np.sum(self.targ_slice.value), 
@@ -1102,7 +1109,7 @@ class PSF(object):
                           wedgeprops=dict(width=0.2, edgecolor='w'))
         p1[0][0].set_alpha(1/2)
         p1[0][1].set_alpha(1/6)
-        self.ax_p.legend([p0[0][0],p1[0][0]], [sl_l[0]]+sl_l[1::2])
+        self.ax_p.legend([p0[0][0],p1[0][0]], [sl_l[0]]+sl_l[1::2], fontsize=12)
 
         fig, self.ax = plt.subplots(figsize=(8,8))
         divider = make_axes_locatable(self.ax)
@@ -1110,11 +1117,11 @@ class PSF(object):
         im = self.ax.contourf(self.x, self.y, self.z, 100, vmin=0)
         for rect in self.rects:
             self.ax.add_patch(rect)
-        self.ax.set_title('PSF')
-        self.ax.set_xlabel('X (%s)' % self.xsize.unit)
-        self.ax.set_ylabel('Y (%s)' % self.xsize.unit)
+        self.ax.set_title('PSF', fontsize=20)
+        self.ax.set_xlabel('X (%s)' % self.xsize.unit, fontsize=15)
+        self.ax.set_ylabel('Y (%s)' % self.xsize.unit, fontsize=15)
         cax.xaxis.set_label_position('top')
-        cax.set_xlabel('Photon')
+        cax.set_xlabel('Photon', fontsize=15)
         fig.colorbar(im, cax=cax, orientation='vertical')
 
     
@@ -1344,7 +1351,7 @@ class Spec(object):
 
         if bckg:
             fig_p, self.ax_p = plt.subplots(figsize=(10,7))
-            self.ax_p.set_title("Photon balance (telescope)")
+            self.ax_p.set_title("Photon balance (telescope)", fontsize=20)
             sl_v = [self.targ_tot.value, self.bckg_tot.value]
             sl_l = ["target (extincted): %2.3e %s"  % (sl_v[0], self.targ_tot.unit), 
                     "background: %2.3e %s" % (sl_v[1], self.bckg_tot.unit)]
@@ -1352,14 +1359,14 @@ class Spec(object):
             #print(sl_v)
             p = self.ax_p.pie(sl_v, colors=sl_c, autopct='%1.1f%%', startangle=90, 
                           wedgeprops=dict(width=0.2, edgecolor='w'))
-            self.ax_p.legend(p[0], sl_l)
+            self.ax_p.legend(p[0], sl_l, fontsize=12)
 
         fig, self.ax = plt.subplots(figsize=(10,5))
-        self.ax.set_title("Spectrum")
-        self.ax.plot(self.wave, self.targ_raw, label='Target raw')
-        self.ax.plot(self.wave, self.targ_ext, label='Target extincted', linestyle='--', c='C0')
+        self.ax.set_title("Spectrum", fontsize=20)
+        self.ax.plot(self.wave, self.targ_raw, label='Target raw', c='black')
+        self.ax.plot(self.wave, self.targ_ext, label='Target extincted', linestyle='--', c='black')
         #self.ax.plot(self.phot.wave_ref0, self.phot.flux_ref0 * self.phot.area * self.phot.texp)
-        if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)')
+        if bckg: self.ax.plot(self.wave, self.bckg_raw, label='Background (per arcsec2)', c='b')
         
         
         np.save('wave_in.npy', self.wave.value)
@@ -1399,12 +1406,12 @@ class Spec(object):
             self.sky_f01 *= au.ph/au.Angstrom / (self.phot.area * texp).unit
 
                 
-        self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit)
-        self.ax.set_ylabel('Flux density\n(%s)' % self.targ_raw.unit)
+        self.ax.set_xlabel('Wavelength (%s)' % self.wave.unit, fontsize=15)
+        self.ax.set_ylabel('Flux density\n(%s)' % self.targ_raw.unit, fontsize=15)
         self.ax.grid(linestyle=':')
             
         if show: 
-            self.ax.legend(loc=2, fontsize=8)
+            self.ax.legend(loc=2, fontsize=12)
             plt.show()
 
 
@@ -1413,7 +1420,7 @@ class Spec(object):
         test_wave = np.ravel([test_wave])
         self.test_wave = test_wave * au.nm
         fig_p, self.ax_p = plt.subplots(figsize=(7,7))
-        self.ax_p.set_title("Photon balance (extraction)")
+        self.ax_p.set_title("Photon balance (extraction)", fontsize=20)
         sl_v = np.array([self.targ_tot.value, np.sum(self.targ_slice.value), 
                          np.sum(self.z_targ.value)-np.sum(self.targ_slice.value),
                          self.targ_sum.value, np.sum(self.z_targ.value)-self.targ_sum.value,
@@ -1441,11 +1448,11 @@ class Spec(object):
         p2[0][1].set_alpha(1/6)
         p3[0][0].set_alpha(1/4)
         p3[0][1].set_alpha(1/6)
-        self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0],p3[0][0]], [sl_l[0]]+sl_l[1::2])
+        self.ax_p.legend([p0[0][0],p1[0][0],p2[0][0],p3[0][0]], [sl_l[0]]+sl_l[1::2], fontsize=12)
 
 
         self.draw_in(bckg=False, show=False, test_wave=test_wave)
-        self.ax.set_title("Spectrum")
+        self.ax.set_title("Spectrum", fontsize=20)
         
         self.instr_eff = np.array([]) 
         self.tel_eff = np.array([])
@@ -1464,9 +1471,8 @@ class Spec(object):
 
         for a in range(arm_n):
             tot_eff, instr_eff, tel_eff = self.tot_eff(a, self.arm_wave[a], self.m_d[a], self.M_d[a])
-            line0, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='C0')
-            line1, = self.ax.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='C1')
-
+            line0, = self.ax.plot(self.arm_wave[a], self.arm_targ[a] * tot_eff, c='black')
+            line1, = self.ax.plot(self.arm_wave[a], self.arm_bckg[a] * tot_eff, c='b')
       
             for i, t in enumerate(test_wave):
                 if t > np.min(self.arm_wave[a]) and t < np.max(self.arm_wave[a]):
@@ -1505,11 +1511,11 @@ class Spec(object):
                 
 
             if arm_n > 1:
-                line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='C0', alpha=0.1)
-                line3 = self.ax.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='gray', alpha=0.1)
+                line2 = self.ax.scatter(self.wave_extr[a,:], self.flux_extr[a,:], s=2, c='red', alpha=0.2)
+                line3 = self.ax.scatter(self.wave_extr[a,:], self.err_extr[a,:], s=2, c='green', alpha=0.2)
             else:
-                line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.1)
-                line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='gray', alpha=0.1)
+                line2 = self.ax.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='red', alpha=0.2)
+                line3 = self.ax.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='green', alpha=0.2)
         
         np.save('wave_blue_extr.npy', self.wave_extr[0,:])
         np.save('flux_blue_extr.npy', self.flux_extr[0,:].value)
@@ -1532,11 +1538,11 @@ class Spec(object):
 
         
         line0.set_label('On detector')            
-        line1.set_label('On detector (error)')            
+        line1.set_label('On detector (background)')            
         line2.set_label('Extracted')
         line3.set_label('Extracted (error)')
 
-        self.ax.legend(loc=2, fontsize=8)
+        self.ax.legend(loc=2, fontsize=12)
         #self.ax.set_yscale('log')
         
         """
@@ -1590,14 +1596,14 @@ class Spec(object):
                 line2 = self.ax_2.scatter(self.wave_extr[:], self.flux_extr[:], s=2, c='C0', alpha=0.4)
                 line3 = self.ax_2.scatter(self.wave_extr[:], self.err_extr[:], s=2, c='C1', alpha=0.4)
 
-        self.ax_2.set_xlabel('Wavelength')
-        self.ax_2.set_ylabel('Flux density\n(ph/extracted pix)')
+        self.ax_2.set_xlabel('Wavelength', fontsize=15)
+        self.ax_2.set_ylabel('Flux density\n(ph/extracted pix)', fontsize=15)
         """
 
         
         
         fig_noise, self.ax_noise = plt.subplots(figsize=(10,5))
-        self.ax_noise.set_title("Squared-noise spectrum")
+        self.ax_noise.set_title("Squared-noise spectrum", fontsize=20)
         
         self.snr_theor = np.array([])
 
@@ -1609,7 +1615,7 @@ class Spec(object):
                              * cspline(self.disp_wave[a], self.disp_sampl[a]*ccd_ybin)(self.arm_wave[a]) \
                              * (slice_n * slice_width * seeing * extr_fwhm_num).value
             #line0, = self.ax_noise.plot(self.arm_wave[a], targ_theor, c='C0')
-            line1, = self.ax_noise.plot(self.arm_wave[a], bckg_theor, c='C1')
+            #line1, = self.ax_noise.plot(self.arm_wave[a], bckg_theor, c='C1')
 
             if arm_n > 1:
                 err_dark_theor = self.err_dark_extr[a,0]
@@ -1618,7 +1624,7 @@ class Spec(object):
                 #line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
             
                 #line2 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_targ_extr[a,:]**2, s=2, c='C0', alpha=0.1)
-                line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='C1', alpha=0.1)
+                line3 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_bckg_extr[a,:]**2, s=2, c='blue', alpha=0.2)
                 line4 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_dark_extr[a,:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[a,:], self.err_ron_extr[a,:]**2, s=2, c='C3')
                 #snr_extr = self.err_targ_extr[a,:]**2/np.sqrt(self.err_targ_extr[a,:]**2+self.err_bckg_extr[a,:]**2\
@@ -1632,7 +1638,7 @@ class Spec(object):
                 #line_theor, = self.ax_noise.plot(self.arm_wave[a], snr_theor, c='grey')
 
                 #line2 = self.ax_noise.scatter(self.wave_extr[:], self.err_targ_extr[:]**2, s=2, c='C0', alpha=0.1)
-                line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:]**2, s=2, c='C1', alpha=0.1)
+                line3 = self.ax_noise.scatter(self.wave_extr[:], self.err_bckg_extr[:]**2, s=2, c='blue', alpha=0.1)
                 line4 = self.ax_noise.scatter(self.wave_extr[:], self.err_dark_extr[:]**2, s=2, c='C2')
                 line5 = self.ax_noise.scatter(self.wave_extr[:], self.err_ron_extr[:]**2, s=2, c='C3')
                 #snr_extr = self.err_targ_extr[:]**2/np.sqrt(self.err_targ_extr[:]**2+self.err_bckg_extr[:]**2\
@@ -1673,25 +1679,25 @@ class Spec(object):
         line3.set_label('Background')
         line4.set_label('Dark')
         line5.set_label('RON ')
-        self.ax_noise.legend(loc=2, fontsize=8)
-        self.ax_noise.set_xlabel('Wavelength')
-        self.ax_noise.set_ylabel('Flux\n(ph/extracted pix)')
+        self.ax_noise.legend(loc=2, fontsize=12)
+        self.ax_noise.set_xlabel('Wavelength', fontsize=15)
+        self.ax_noise.set_ylabel('Flux\n(ph/extracted pix)', fontsize=15)
         self.ax_noise.set_yscale('log')
         
         """
         fig_pix, self.ax_pix = plt.subplots(figsize=(10,5))
-        self.ax_pix.set_title("Extraction spectrum")
+        self.ax_pix.set_title("Extraction spectrum", fontsize=20)
         for a in range(arm_n):
             if arm_n > 1:
                 line1 = self.ax_pix.scatter(self.wave_extr[a,:], self.pix_extr[a,:], s=2, c='red')
             else:
                 line1 = self.ax_pix.scatter(self.wave_extr[:], self.pix_extr[:], s=2, c='red')
-        self.ax_pix.set_xlabel('Wavelength')
-        self.ax_pix.set_ylabel('(pix/extracted pix)')
+        self.ax_pix.set_xlabel('Wavelength', fontsize=15)
+        self.ax_pix.set_ylabel('(pix/extracted pix)', fontsize=15)
         """
         
         fig_snr, self.ax_snr = plt.subplots(figsize=(10,5))
-        self.ax_snr.set_title("SNR")
+        self.ax_snr.set_title("SNR", fontsize=20)
         linet, = self.ax_snr.plot(self.wave_snr, self.snr, linestyle='--', c='black')
         linet.set_label('SNR')
         self.snr_extr = np.array([])
@@ -1705,10 +1711,10 @@ class Spec(object):
                               ha='right', va='top',
                               transform=self.ax_snr.transAxes)
         """
-        self.ax_snr.legend(loc=2, fontsize=8)
+        self.ax_snr.legend(loc=2, fontsize=12)
 
-        self.ax_snr.set_xlabel('Wavelength')
-        self.ax_snr.set_ylabel('SNR (1/extracted pix)')
+        self.ax_snr.set_xlabel('Wavelength', fontsize=15)
+        self.ax_snr.set_ylabel('SNR (1/extracted pix)', fontsize=15)
         self.ax_snr.grid(linestyle=':')
         
     def flat(self):
@@ -1852,7 +1858,16 @@ class Spec(object):
         spl = cspline(wavef, fluxf)(wave.value)
         flux = spl #* au.photon/au.nm
         #os.remove(name)
-        return flux
+        
+        std = 0.07  # Revise
+        mean = np.median(wave)
+        prof = np.exp(-((wave - mean) / std).value**2)
+        if (len(prof) % 2 == 0):
+            prof = prof[:-1]
+        prof = prof / np.sum(prof)
+        flux_conv = fftconvolve(flux, prof, mode='same')
+        
+        return flux_conv
 
     
     def star(self):
@@ -2006,15 +2021,15 @@ class Sim():
                 getattr(self, o+'_create')()
                 
     
-    def ccd(self, test_wave=380):
-        self.ccd_create()
+    def ccd(self, test_wave=380, lr=False):
+        self.ccd_create(lr)
         self.ccd_draw(test_wave=test_wave)
 
 
-    def ccd_create(self):            
+    def ccd_create(self, lr=False):            
         self.check(True, 'phot', 'spec', 'psf')
         self._ccd = CCD(self._psf, self._spec, xsize=ccd_xsize, ysize=ccd_ysize, pix_xsize=pix_xsize, pix_ysize=pix_ysize,
-                        xbin=ccd_xbin, ybin=ccd_ybin, func=extr_func)
+                        xbin=ccd_xbin, ybin=ccd_ybin, func=extr_func, lr=lr)
         self._ccd.add_arms(n=arm_n, wave_d=wave_d, wave_d_shift=wave_d_shift)
 
         

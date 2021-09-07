@@ -133,4 +133,4 @@ psf_pars = ['psf_func', 'psf_sampl', 'psf_cen', 'targ_prof', 'targ_invrad_params
             'slice_length', 'slice_width', 'seeing']
 ccd_pars = ['ccd_gain', 'ccd_ron', 'ccd_dark', 'ccd_xsize', 'ccd_ysize', 'pix_xsize', 'pix_ysize', 'ccd_xbin', 'ccd_ybin',
             'arm_n', 'wave_d', 'wave_d_shift', 'eff_adc', 'eff_slc', 'eff_dch', 'eff_spc', 'eff_grt', 'eff_ccd', 
-            'disp_wave', 'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func']
+            'disp_wave', 'disp_sampl', 'disp_resol', 'spat_scale', 'slice_gap', 'extr_func', 'lr']
