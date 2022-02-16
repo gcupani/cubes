@@ -55,8 +55,8 @@ flux_ref_Vega2 = {'U': 11403*au.photon/au.cm**2/au.s/au.nm,
 
 
 mag_ref_AB = {'U': 18.77, 'B': 18.77, 'V': 18.77}
-mag_ref_Vega = {'U': 18.00, 'B': 18.89, 'V': 18.77}
-
+#mag_ref_Vega = {'U': 18.00, 'B': 18.89, 'V': 18.77}
+mag_ref_Vega = {'U': 17.98, 'B': 18.86, 'V': 18.75}
 
 wave_U = 360 * au.nm  # Effective wavelength, U band
 wave_u = 356 * au.nm  # Effective wavelength, u band

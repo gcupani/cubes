@@ -1262,6 +1262,9 @@ class Spec(object):
         ref0_resc = ref0_extend * pow(10, 0.4*(mag_ref_diff[band]-mag_ref_diff[mag_band]))
         #print(ref0_extend, ref0_resc)
         
+        #print(band, mag_ref_diff[band])
+        #print(np.min(wave_band), np.max(wave_band))
+        
         b = np.where(np.logical_and(self.wave_extend > np.min(wave_band), self.wave_extend < np.max(wave_band)))
         waveb = self.wave_extend[b]
         fluxb = raw[b]
@@ -1329,7 +1332,7 @@ class Spec(object):
         t.write('input_spectrum.dat', format='ascii.no_header', formats={'wave': '%2.4f', 'flux': '%2.12e'}, 
                 overwrite=True)  
         #"""
-                        
+        #print(np.min(self.phot.wave_band), np.max(self.phot.wave_band))
         band = np.where(np.logical_and(wavef>np.min(self.phot.wave_band), wavef<np.max(self.phot.wave_band)))
         waveb = wavef[band]
         #dwaveb = np.median(wavef[1:]-wavef[:-1])
